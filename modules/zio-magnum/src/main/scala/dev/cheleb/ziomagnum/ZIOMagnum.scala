@@ -2,18 +2,28 @@ package dev.cheleb.ziomagnum
 
 import zio.*
 import com.augustnagro.magnum.*
+import com.augustnagro.magnum.ziomagnum.*
 
-case class User(id: Int, name: String)
+case class User(id: Int, name: String) derives DbCodec
 
-class ZIOMagnum(transactor: Transactor):
+object ZIOMagnum extends ZIOAppDefault:
 
-  val users: Vector[User] = connect(transactor):
-    sql"SELECT * FROM user".query[User].run()
+  val program = for {
 
-override def toString(): String = "ZIOMagnum"
+    ls <- sql"SELECT * FROM \"user\""
+      .query[User]
+      .zioRun
+    _ <- ZIO.debug(s"Users: ${ls.mkString(", ")}")
 
-object ZIOMagnum:
+  } yield ()
 
-  def run[A](frag: Frag): ZIO[DbCon, Throwable, A] =
-    for dbCon <- ZIO.service[DbCon]
-    yield ???
+  def run: ZIO[ZIOAppArgs, Any, Any] =
+    program.provide(
+      Scope.default,
+      createDataSource(
+        "jdbc:postgresql://localhost:5432/cheleb",
+        "test",
+        "test"
+      ),
+      dbConLive()
+    )
