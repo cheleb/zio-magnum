@@ -4,6 +4,7 @@ import zio.*
 import zio.test.Assertion.*
 import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
+import javax.sql.DataSource
 
 @SqlName("users")
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
@@ -25,7 +26,9 @@ object MeshRepositorySpec
 
         } yield count
 
-        program.map(count => assert(count)(equalTo(5)))
+        program
+          .map(count => assert(count)(equalTo(5)))
+          .provideSomeLayer(dbConLayer())
       },
       test("Queying a table") {
         val program = for {
@@ -35,7 +38,9 @@ object MeshRepositorySpec
 
         } yield users
 
-        program.map(users => assert(users.size)(equalTo(5)))
+        program
+          .map(users => assert(users.size)(equalTo(5)))
+          .provideSomeLayer(dbConLayer())
       },
       test("Streaming a table") {
         val program = for {
@@ -48,11 +53,13 @@ object MeshRepositorySpec
 
         } yield count
 
-        program.map(count => assert(count)(equalTo(5)))
+        program
+          .map(count => assert(count)(equalTo(5)))
+          .provideSomeLayer(dbConLayer())
       }
     ).provide(
       testDataSouurceLayer,
-      dbConLayer(),
+      // dbConLayer(),
       Scope.default
     )
 

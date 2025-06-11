@@ -9,13 +9,16 @@ import zio.stream.ZStream
 import scala.util.Using
 import scala.util.Try
 import java.io.IOException
+import java.sql.Connection
 
 def dbConLayer(
 ): ZLayer[Scope & DataSource, Throwable, DbCon] =
   ZLayer {
     for
+      _ <- ZIO.debug("Creating DbCon layer")
       ds <- ZIO.service[DataSource]
-      con <- ZIO.fromAutoCloseable(ZIO.attempt(ds.getConnection()))
+      con <- ZIO
+        .fromAutoCloseable(ZIO.attempt(ds.getConnection()))
       sqlLogger = SqlLogger.Default
     yield DbCon(con, sqlLogger)
   }
@@ -30,6 +33,17 @@ def dataSourceLayer(jdbcUrl: String, username: String, password: String) =
       HikariDataSource(config)
     }
   })
+
+def ztransactor(
+    sqlLogger: SqlLogger = SqlLogger.Default,
+    /** Customize the underlying JDBC Connections */
+    connectionConfig: Connection => Unit = con => ()
+): URLayer[DataSource, Transactor] =
+  ZLayer(
+    ZIO
+      .service[DataSource]
+      .map(ds => Transactor(ds, sqlLogger, connectionConfig))
+  )
 
 extension [A](query: Query[A])
   def zrun: ZIO[Scope & DbCon, Throwable, Vector[A]] =
