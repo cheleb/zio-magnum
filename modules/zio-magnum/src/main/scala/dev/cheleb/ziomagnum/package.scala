@@ -15,7 +15,7 @@ def dbConLayer(
 ): ZLayer[Scope & DataSource, Throwable, DbCon] =
   ZLayer {
     for
-      _ <- ZIO.debug("Creating DbCon layer")
+      _ <- ZIO.logDebug("Creating DbCon layer")
       ds <- ZIO.service[DataSource]
       con <- ZIO
         .fromAutoCloseable(ZIO.attempt(ds.getConnection()))

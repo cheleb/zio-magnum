@@ -14,7 +14,7 @@ object TransactorSpec
     suite("ZIO Magnum")(
       test("Transactor ") {
         val program = for {
-          _ <- ZIO.debug("Transactor test started")
+          _ <- ZIO.logDebug("Transactor test started")
           tx <- ZIO.service[Transactor]
         } yield ()
 

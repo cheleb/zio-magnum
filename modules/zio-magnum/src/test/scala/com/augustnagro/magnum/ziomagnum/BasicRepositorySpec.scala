@@ -5,6 +5,8 @@ import zio.test.Assertion.*
 import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
 import javax.sql.DataSource
+import zio.logging.backend.SLF4J
+import zio.logging.LogFormat
 
 @SqlName("users")
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
@@ -15,6 +17,8 @@ val userRepo = ImmutableRepo[User, Int]
 object MeshRepositorySpec
     extends ZIOSpecDefault
     with RepositorySpec("sql/users.sql") {
+
+  val slf4jLogger: ULayer[Unit] = Runtime.removeDefaultLoggers >>> SLF4J.slf4j
 
   override def spec: ZSpec[TestEnvironment & Scope, Any] =
     suite("ZIO Magnum")(
@@ -44,7 +48,7 @@ object MeshRepositorySpec
       },
       test("Streaming a table") {
         val program = for {
-          _ <- ZIO.debug("Starting stream")
+          _ <- ZIO.logDebug("Starting stream")
           zs = sql"SELECT * FROM users"
             .query[User]
             .zstream()
@@ -60,7 +64,8 @@ object MeshRepositorySpec
     ).provide(
       testDataSouurceLayer,
       // dbConLayer(),
-      Scope.default
+      Scope.default,
+      slf4jLogger
     )
 
 }
