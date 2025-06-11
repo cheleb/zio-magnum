@@ -49,24 +49,21 @@ extension [A](query: Query[A])
   private def ziterator(
       fetchSize: Int
   )(using dbCon: DbCon): ZIO[Scope, IOException, ResultSetIterator[A]] =
-    handleQuery(query.frag.sqlString, query.frag.params):
-      Try:
-        timed:
-          for
-            ps <- ZIO.fromAutoCloseable(
-              ZIO.attemptBlockingIO(
-                dbCon.connection.prepareStatement(query.frag.sqlString)
-              )
-            )
-            _ = ps.setFetchSize(fetchSize)
-            _ = query.frag.writer.write(ps, 1)
+    for
+      ps <- ZIO.fromAutoCloseable(
+        ZIO.attemptBlockingIO(
+          dbCon.connection.prepareStatement(query.frag.sqlString)
+        )
+      )
+      _ = ps.setFetchSize(fetchSize)
+      _ = query.frag.writer.write(ps, 1)
 
-            rs <- ZIO.fromAutoCloseable(
-              ZIO.attemptBlockingIO(ps.executeQuery())
-            )
-          yield ResultSetIterator(
-            rs,
-            query.frag,
-            query.reader,
-            dbCon.sqlLogger
-          )
+      rs <- ZIO.fromAutoCloseable(
+        ZIO.attemptBlockingIO(ps.executeQuery())
+      )
+    yield ResultSetIterator(
+      rs,
+      query.frag,
+      query.reader,
+      dbCon.sqlLogger
+    )

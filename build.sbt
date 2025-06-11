@@ -32,6 +32,8 @@ lazy val magnumZio = project
       "org.scalameta" %% "munit" % munitVersion % Test,
       "com.dimafeng" %% "testcontainers-scala-munit" % testcontainersVersion % Test,
       "com.dimafeng" %% "testcontainers-scala-postgresql" % testcontainersVersion % Test,
-      "org.postgresql" % "postgresql" % postgresDriverVersion
+      "org.postgresql" % "postgresql" % postgresDriverVersion % Test,
+      "dev.zio" %% "zio-test" % "2.1.19" % Test,
+      "dev.zio" %% "zio-test-sbt" % "2.1.19" % Test
     )
   )
