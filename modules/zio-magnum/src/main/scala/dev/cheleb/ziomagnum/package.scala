@@ -32,10 +32,21 @@ def dataSourceLayer(jdbcUrl: String, username: String, password: String) =
   })
 
 extension [A](query: Query[A])
-  def zrun: ZIO[DbCon, Throwable, Vector[A]] =
+  def zrun: ZIO[Scope & DbCon, Throwable, Vector[A]] =
     for
-      dbConn <- ZIO.service[DbCon]
-      res = query.run()(using dbConn)
+      dbCon <- ZIO.service[DbCon]
+
+      ps <- ZIO.fromAutoCloseable(
+        ZIO.attemptBlockingIO(
+          dbCon.connection.prepareStatement(query.frag.sqlString)
+        )
+      )
+      _ = query.frag.writer.write(ps, 1)
+
+      rs <- ZIO.fromAutoCloseable(
+        ZIO.attemptBlockingIO(ps.executeQuery())
+      )
+      res = query.reader.read(rs)
     yield res
 
   def zstream(fetchSize: Int = 10): ZStream[DbCon, Throwable, A] =
