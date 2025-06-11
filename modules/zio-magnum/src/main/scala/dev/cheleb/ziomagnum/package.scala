@@ -10,7 +10,7 @@ import scala.util.Using
 import scala.util.Try
 import java.io.IOException
 
-def dbConLive(
+def dbConLayer(
 ): ZLayer[Scope & DataSource, Throwable, DbCon] =
   ZLayer {
     for
@@ -20,7 +20,7 @@ def dbConLive(
     yield DbCon(con, sqlLogger)
   }
 
-def createDataSource(jdbcUrl: String, username: String, password: String) =
+def dataSourceLayer(jdbcUrl: String, username: String, password: String) =
   ZLayer(ZIO.fromAutoCloseable {
     ZIO.attemptBlockingIO {
       val config = HikariConfig()
