@@ -27,6 +27,7 @@ lazy val magnumZio = project
     libraryDependencies ++= Seq(
       "com.augustnagro" %% "magnum" % magnumVersion,
       "dev.zio" %% "zio" % "2.1.19",
+      "dev.zio" %% "zio-streams" % "2.1.19",
       "com.zaxxer" % "HikariCP" % "6.2.1",
       "org.scalameta" %% "munit" % munitVersion % Test,
       "com.dimafeng" %% "testcontainers-scala-munit" % testcontainersVersion % Test,

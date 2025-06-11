@@ -3,6 +3,7 @@ package dev.cheleb.ziomagnum
 import zio.*
 import com.augustnagro.magnum.*
 import com.augustnagro.magnum.ziomagnum.*
+import scala.util.Using
 
 case class User(id: Int, name: String) derives DbCodec
 
@@ -12,8 +13,12 @@ object ZIOMagnum extends ZIOAppDefault:
 
     ls <- sql"SELECT * FROM \"user\""
       .query[User]
-      .zioRun
+      .zrun
     _ <- ZIO.debug(s"Users: ${ls.mkString(", ")}")
+    zs = sql"SELECT * FROM \"user\""
+      .query[User]
+      .zstream()
+    _ <- zs.runForeach(user => ZIO.debug(s"User from stream: $user"))
 
   } yield ()
 
