@@ -10,6 +10,7 @@ import scala.util.Using
 import scala.util.Try
 import java.io.IOException
 import java.sql.Connection
+import dev.cheleb.ziomagnum.ZTransaction
 
 def dbConLayer(
 ): ZLayer[Scope & DataSource, Throwable, DbCon] =
@@ -38,11 +39,29 @@ def ztransactor(
     sqlLogger: SqlLogger = SqlLogger.Default,
     /** Customize the underlying JDBC Connections */
     connectionConfig: Connection => Unit = con => ()
-): URLayer[DataSource, Transactor] =
+): RLayer[Scope & DataSource, ZTransaction] =
   ZLayer(
-    ZIO
-      .service[DataSource]
-      .map(ds => Transactor(ds, sqlLogger, connectionConfig))
+    for
+      ds <- ZIO.service[DataSource]
+      tx <- ZIO.acquireReleaseExit(
+        ZIO.attempt(ZTransaction(ds.getConnection()))
+      ) {
+        case (tx, Exit.Success(_)) =>
+          ZIO.attemptBlockingIO(tx.commit()).ignore *>
+            ZIO.logDebug("Transaction committed")
+        case (tx, Exit.Failure(cause)) =>
+          ZIO.attemptBlockingIO {
+            ZIO.logErrorCause(
+              s"Transaction failed, rolling back: ${cause.prettyPrint}",
+              cause
+            )
+            // If the transaction fails, we close the connection
+            // and log the error.
+            ZIO
+              .attemptBlockingIO(tx.rollback())
+          }.ignore
+      }
+    yield tx
   )
 
 extension [A](query: Query[A])
