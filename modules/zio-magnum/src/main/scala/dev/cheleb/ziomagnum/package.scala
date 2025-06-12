@@ -10,9 +10,9 @@ import scala.util.Using
 import scala.util.Try
 import java.io.IOException
 import java.sql.Connection
-import dev.cheleb.ziomagnum.ZTransaction
 import zio.Exit.Success
 import zio.Exit.Failure
+import scala.annotation.targetName
 
 val currentConnection: FiberRef[Option[Connection]] =
   Unsafe.unsafe { implicit unsafe =>
@@ -61,35 +61,6 @@ def dataSourceLayer(jdbcUrl: String, username: String, password: String) =
     }
   })
 
-def ztransactor(
-    sqlLogger: SqlLogger = SqlLogger.Default,
-    /** Customize the underlying JDBC Connections */
-    connectionConfig: Connection => Unit = con => ()
-): RLayer[Scope & DataSource, ZTransaction] =
-  ZLayer(
-    for
-      ds <- ZIO.service[DataSource]
-      tx <- ZIO.acquireReleaseExit(
-        ZIO.attempt(ZTransaction(ds.getConnection()))
-      ) {
-        case (tx, Exit.Success(_)) =>
-          ZIO.attemptBlockingIO(tx.commit()).ignore *>
-            ZIO.logDebug("Transaction committed")
-        case (tx, Exit.Failure(cause)) =>
-          ZIO.attemptBlockingIO {
-            ZIO.logErrorCause(
-              s"Transaction failed, rolling back: ${cause.prettyPrint}",
-              cause
-            )
-            // If the transaction fails, we close the connection
-            // and log the error.
-            ZIO
-              .attemptBlockingIO(tx.rollback())
-          }.ignore
-      }
-    yield tx
-  )
-
 def transaction[R <: DataSource, A](
     op: ZIO[R, Throwable, A]
 ): ZIO[R, Throwable, A] = {
@@ -132,6 +103,7 @@ def transaction[R <: DataSource, A](
 }
 
 extension [A](query: Query[A])
+
   def zrun: ZIO[Scope & DbCon, Throwable, Vector[A]] =
     for
       dbCon <- ZIO.service[DbCon]
@@ -178,3 +150,19 @@ extension [A](query: Query[A])
       query.reader,
       dbCon.sqlLogger
     )
+
+extension (update: Update)
+  @targetName("update")
+  def zrun: ZIO[Scope & DbCon, Throwable, Int] =
+    for
+      dbCon <- ZIO.service[DbCon]
+
+      ps <- ZIO.fromAutoCloseable(
+        ZIO.attemptBlockingIO(
+          dbCon.connection.prepareStatement(update.frag.sqlString)
+        )
+      )
+      _ = update.frag.writer.write(ps, 1)
+
+      res = update.run()(using dbCon)
+    yield res

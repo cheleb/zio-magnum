@@ -5,7 +5,7 @@ import zio.test.Assertion.*
 import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
 import javax.sql.DataSource
-import dev.cheleb.ziomagnum.ZTransaction
+
 import zio.logging.backend.SLF4J
 
 object TransactorSpec
@@ -21,12 +21,14 @@ object TransactorSpec
           for
             given DbCon <- ZIO.service[DbCon]
             tx <- transaction(
-              sql"SELECT COUNT(*) FROM users".query[Int].zrun
+              sql"INSERT INTO users (name) VALUES ('Test User')".update.zrun
+                *>
+                  sql"SELECT COUNT(*) FROM users".query[Int].zrun
             )
           yield tx
 
         program
-          .map(count => assert(count(0))(equalTo(5)))
+          .map(count => assert(count(0))(equalTo(6)))
 
       }
     ).provide(
