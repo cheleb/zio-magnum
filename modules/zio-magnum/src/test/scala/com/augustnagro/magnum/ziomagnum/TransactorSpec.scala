@@ -12,36 +12,26 @@ object TransactorSpec
     extends ZIOSpecDefault
     with RepositorySpec("sql/users.sql") {
 
-  // transact()
-
   val slf4jLogger: ULayer[Unit] = Runtime.removeDefaultLoggers >>> SLF4J.slf4j
 
   override def spec: ZSpec[TestEnvironment & Scope, Any] =
     suite("ZIO Magnum")(
       test("Transactor ") {
-        val tx =
-          for {
-            _ <- ZIO.logDebug("Transactor test started")
-            tx <-
-              ZIO.service[ZTransaction]
-
-          } yield ()
-
-        val program = for {
-          _ <- ZIO.logDebug("Starting transaction")
-          _ <- ZIO.scoped:
-            tx.provideSomeLayer(ztransactor())
-//          count <- sql"SELECT COUNT(*) FROM users".query[Int].zrun
-          _ <- ZIO.logDebug(s"Count from transaction: ")
-        } yield ()
+        val program =
+          for
+            given DbCon <- ZIO.service[DbCon]
+            tx <- transaction(
+              sql"SELECT COUNT(*) FROM users".query[Int].zrun
+            )
+          yield tx
 
         program
-          .map(count => assertCompletes)
+          .map(count => assert(count(0))(equalTo(5)))
 
       }
     ).provide(
       testDataSouurceLayer,
-      // dbConLayer(),
+      dbConLayer(),
       Scope.default,
       slf4jLogger
     )
