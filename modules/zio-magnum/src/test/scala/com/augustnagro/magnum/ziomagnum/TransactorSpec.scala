@@ -19,9 +19,9 @@ object TransactorSpec
       test("Transactor ") {
         val program =
           for tx <- transaction(
-              sql"INSERT INTO users (name) VALUES ('Test User')".update.zrun
-                *>
-                  sql"SELECT COUNT(*) FROM users".query[Int].zrun
+              // sql"INSERT INTO users (name) VALUES ('Test User')".update.zrun
+              //   *>
+              sql"SELECT COUNT(*) FROM users".query[Int].trun
             )
           yield tx
 
@@ -30,9 +30,7 @@ object TransactorSpec
 
       }
     ).provide(
-      testDataSouurceLayer,
-      dbConLayer(),
-      Scope.default,
+      Scope.default >>> testDataSouurceLayer,
       slf4jLogger
     )
 

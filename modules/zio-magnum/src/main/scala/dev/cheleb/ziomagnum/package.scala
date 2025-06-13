@@ -19,7 +19,7 @@ val currentConnection: FiberRef[Option[Connection]] =
     Runtime.default.unsafe
       .run(
         zio.Scope.global
-          .extend(FiberRef.make(Option.empty[java.sql.Connection]))
+          .extend(FiberRef.make(Option.empty[Connection]))
       )
       .getOrThrow()
   }
@@ -61,14 +61,15 @@ def dataSourceLayer(jdbcUrl: String, username: String, password: String) =
     }
   })
 
-def transaction[R <: DataSource, A](
-    op: ZIO[R, Throwable, A]
+def transaction[R <: DataSource, U >: R, A](
+    op: Connection ?=> ZIO[R, Throwable, A]
 ): ZIO[R, Throwable, A] = {
   ZIO.blocking(currentConnection.get.flatMap {
     // We can just return the op in the case that there is already a connection set on the fiber ref
     // because the op is execute___ which will lookup the connection from the fiber ref via onConnection/onConnectionStream
     // This will typically happen for nested transactions e.g. transaction(transaction(a *> b) *> c)
-    case Some(connection) => op
+    case Some(connection) =>
+      op(using connection)
     case None =>
       val connection = for {
         env <- ZIO.service[DataSource]
@@ -84,7 +85,10 @@ def transaction[R <: DataSource, A](
         ) { _ =>
           ZIO.attemptBlocking(connection.setAutoCommit(prevAutoCommit)).orDie
         }
-        _ <- ZIO.acquireRelease(currentConnection.set(Some(connection))) { _ =>
+
+        _ <- ZIO.acquireRelease(
+          currentConnection.set(Some(connection))
+        ) { _ =>
           // Note. We are failing the fiber if auto-commit reset fails. For some circumstances this may be too aggresive.
           // If the connection pool e.g. Hikari resets this property for a recycled connection anyway doing it here
           // might not be necessary
@@ -96,9 +100,9 @@ def transaction[R <: DataSource, A](
           case Failure(cause) =>
             ZIO.blocking(ZIO.succeed(connection.rollback()))
         }
-      } yield ()
+      } yield connection
 
-      ZIO.scoped(connection *> op)
+      ZIO.scoped(connection.flatMap(db => op(using db)))
   })
 }
 
@@ -111,6 +115,22 @@ extension [A](query: Query[A])
       ps <- ZIO.fromAutoCloseable(
         ZIO.attemptBlockingIO(
           dbCon.connection.prepareStatement(query.frag.sqlString)
+        )
+      )
+      _ = query.frag.writer.write(ps, 1)
+
+      rs <- ZIO.fromAutoCloseable(
+        ZIO.attemptBlockingIO(ps.executeQuery())
+      )
+      res = query.reader.read(rs)
+    yield res
+
+  def trun(using connection: Connection): Task[Vector[A]] = ZIO.scoped:
+    for
+
+      ps <- ZIO.fromAutoCloseable(
+        ZIO.attemptBlockingIO(
+          connection.prepareStatement(query.frag.sqlString)
         )
       )
       _ = query.frag.writer.write(ps, 1)
@@ -154,6 +174,20 @@ extension [A](query: Query[A])
 extension (update: Update)
   @targetName("update")
   def zrun: ZIO[Scope & DbCon, Throwable, Int] =
+    for
+      dbCon <- ZIO.service[DbCon]
+
+      ps <- ZIO.fromAutoCloseable(
+        ZIO.attemptBlockingIO(
+          dbCon.connection.prepareStatement(update.frag.sqlString)
+        )
+      )
+      _ = update.frag.writer.write(ps, 1)
+
+      res = update.run()(using dbCon)
+    yield res
+
+  def zrun2: ZIO[Scope & DbCon, Throwable, Int] =
     for
       dbCon <- ZIO.service[DbCon]
 
