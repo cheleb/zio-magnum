@@ -18,9 +18,7 @@ object TransactorSpec
     suite("ZIO Magnum")(
       test("Transactor ") {
         val program =
-          for
-            given DbCon <- ZIO.service[DbCon]
-            tx <- transaction(
+          for tx <- transaction(
               sql"INSERT INTO users (name) VALUES ('Test User')".update.zrun
                 *>
                   sql"SELECT COUNT(*) FROM users".query[Int].zrun
