@@ -19,7 +19,7 @@ object TransactorSpec
       test("Transactor ") {
         val program =
           for tx <- transaction(
-              sql"INSERT INTO users (name) VALUES ('Test User')".update.zrun
+              sql"INSERT INTO users (name) VALUES ('Test User')".zUpdate
                 *>
                   sql"SELECT COUNT(*) FROM users".zQuery[Int]
             )

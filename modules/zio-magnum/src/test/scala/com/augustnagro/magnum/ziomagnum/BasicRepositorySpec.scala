@@ -23,16 +23,10 @@ object MeshRepositorySpec
   override def spec: ZSpec[TestEnvironment & Scope, Any] =
     suite("ZIO Magnum")(
       test("ImmutableRepo ") {
-        val program = for {
-          given DbCon <- ZIO.service[DbCon]
-
-          count = userRepo.count
-
-        } yield count
+        val program = userRepo.zcount
 
         program
           .map(count => assert(count)(equalTo(5)))
-          .provideSomeLayer(dbConLayer())
       },
       test("Queying a table") {
         val program = for {
@@ -48,9 +42,7 @@ object MeshRepositorySpec
       test("Streaming a table") {
         val program = for {
           _ <- ZIO.logDebug("Starting stream")
-          zs = sql"SELECT * FROM users"
-            .query[User]
-            .zstream()
+          zs = sql"SELECT * FROM users".zStream[User]()
           _ <- zs.runForeach(user => ZIO.debug(s"User from stream: $user"))
           count <- zs.runCount
 
@@ -58,11 +50,10 @@ object MeshRepositorySpec
 
         program
           .map(count => assert(count)(equalTo(5)))
-          .provideSomeLayer(dbConLayer())
+
       }
     ).provide(
       testDataSouurceLayer,
-      // dbConLayer(),
       Scope.default,
       slf4jLogger
     )

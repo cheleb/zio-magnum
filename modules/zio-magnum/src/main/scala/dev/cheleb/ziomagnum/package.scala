@@ -35,12 +35,12 @@ private val currentConnection: FiberRef[Option[Connection]] =
  * connection using the DataSource, put it in the fiberRef, and remove it when done.
  */
 private def withConnection[R <: DataSource, A](
-    op: Connection ?=> ZIO[R, Throwable, A]
+    op: Connection => ZIO[R, Throwable, A]
 ): ZIO[R, Throwable, A] =
   currentConnection.get.flatMap {
-    case Some(connection) => op(using connection)
+    case Some(connection) => op(connection)
     case None =>
-      ZIO.scoped(fiberRefConnection(false).flatMap(db => op(using db)))
+      ZIO.scoped(fiberRefConnection(false).flatMap(db => op(db)))
   }
 
 private def withScopedConnection[R <: DataSource & Scope, A](
@@ -114,17 +114,6 @@ private def scopedBestEffort[R, E, A <: AutoCloseable](
       .ignore
   )
 
-def dbConLayer(): ZLayer[Scope & DataSource, Throwable, DbCon] =
-  ZLayer {
-    for
-      _ <- ZIO.logDebug("Creating DbCon layer")
-      ds <- ZIO.service[DataSource]
-      con <- ZIO
-        .fromAutoCloseable(ZIO.attempt(ds.getConnection()))
-      sqlLogger = SqlLogger.Default
-    yield DbCon(con, sqlLogger)
-  }
-
 def dataSourceLayer(jdbcUrl: String, username: String, password: String) =
   ZLayer(ZIO.fromAutoCloseable {
     ZIO.attemptBlockingIO {
@@ -192,7 +181,7 @@ def transaction[R <: DataSource, A](
 
 extension [A](query: Query[A])
 
-  private def toZIO(using connection: Connection) = ZIO.scoped:
+  private def toZIO(connection: Connection) = ZIO.scoped:
     for
       ps <- prepareStatement(connection, query.frag)
       rs <- ZIO.fromAutoCloseable(
@@ -200,10 +189,11 @@ extension [A](query: Query[A])
       )
     yield query.reader.read(rs)
 
-  def zrun[R <: DataSource]: ZIO[R, Throwable, Vector[A]] = withConnection:
-    toZIO
+  private def zrun[R <: DataSource]: ZIO[R, Throwable, Vector[A]] =
+    withConnection:
+      toZIO
 
-  def zstream(fetchSize: Int = 10): ZStream[DataSource, Throwable, A] =
+  private def zstream(fetchSize: Int): ZStream[DataSource, Throwable, A] =
     ZStream.unwrapScoped(
       withScopedConnection:
         ziterator(fetchSize)
@@ -230,7 +220,7 @@ extension [A](query: Query[A])
 
 extension (update: Update)
 
-  private def toZIO(using connection: Connection) = ZIO.scoped:
+  private def toZIO(connection: Connection) = ZIO.scoped:
     for
       ps <- ZIO.fromAutoCloseable(
         ZIO.attemptBlockingIO(
@@ -246,3 +236,25 @@ extension (update: Update)
 extension (frag: Frag)
   def zQuery[A: DbCodec] =
     frag.query[A].zrun
+
+  def zUpdate =
+    frag.update.zrun
+
+  def zStream[A: DbCodec](fetchSize: Int = 10) =
+    frag.query[A].zstream(fetchSize)
+
+extension [A, K](repo: ImmutableRepo[A, K])
+  def zcount[R <: DataSource]: ZIO[R, Throwable, Long] =
+    withConnection: conn =>
+      ZIO.attemptBlocking:
+        repo.count(using DbCon(conn, SqlLogger.Default))
+  // TODO implement findById and findAll methods ...
+  // def findById[R <: DataSource](
+  //     id: K
+  // )(using DbCon: DbCon): ZIO[R, Throwable, Option[A]] =
+  //   repo.findById(id).zrun
+
+  // def findAll[R <: DataSource](
+  //     using DbCon: DbCon
+  // ): ZIO[R, Throwable, Vector[A]] =
+  //   repo.findAll.zrun
