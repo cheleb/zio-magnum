@@ -21,7 +21,7 @@ object TransactorSpec
           for tx <- transaction(
               sql"INSERT INTO users (name) VALUES ('Test User')".update.zrun
                 *>
-                  sql"SELECT COUNT(*) FROM users".query[Int].zrun
+                  sql"SELECT COUNT(*) FROM users".zQuery[Int]
             )
           yield tx
 

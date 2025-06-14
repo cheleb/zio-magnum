@@ -234,3 +234,7 @@ extension (update: Update)
 
   def zrun[R <: DataSource]: ZIO[R, Throwable, Int] = withConnection:
     toZIO
+
+extension (frag: Frag)
+  def zQuery[A: DbCodec] =
+    frag.query[A].zrun

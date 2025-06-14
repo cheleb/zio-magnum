@@ -37,8 +37,7 @@ object MeshRepositorySpec
       test("Queying a table") {
         val program = for {
           users <- sql"SELECT * FROM users"
-            .query[User]
-            .zrun
+            .zQuery[User]
 
         } yield users
 
