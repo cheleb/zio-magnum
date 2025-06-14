@@ -43,6 +43,15 @@ private def withConnection[R <: DataSource, A](
       ZIO.scoped(fiberRefConnection(false).flatMap(db => op(using db)))
   }
 
+private def withScopedConnection[R <: DataSource & Scope, A](
+    op: Connection ?=> ZIO[R, Throwable, A]
+): ZIO[R, Throwable, A] =
+  currentConnection.get.flatMap {
+    case Some(connection) => op(using connection)
+    case None =>
+      fiberRefConnection(false).flatMap(db => op(using db))
+  }
+
 private def prepareStatement(
     connection: Connection,
     frag: Frag
@@ -194,19 +203,18 @@ extension [A](query: Query[A])
   def zrun[R <: DataSource]: ZIO[R, Throwable, Vector[A]] = withConnection:
     toZIO
 
-  def zstream(fetchSize: Int = 10): ZStream[DbCon, Throwable, A] =
+  def zstream(fetchSize: Int = 10): ZStream[DataSource, Throwable, A] =
     ZStream.unwrapScoped(
-      for
-        dbConn <- ZIO.service[DbCon]
-        it <- ziterator(fetchSize)(using dbConn)
-      yield ZStream
-        .fromIterator(it)
+      withScopedConnection:
+        ziterator(fetchSize)
+          .map: it =>
+            ZStream.fromIterator(it)
     )
   private def ziterator(
       fetchSize: Int
-  )(using dbCon: DbCon): ZIO[Scope, Throwable, ResultSetIterator[A]] =
+  )(using connection: Connection): ZIO[Scope, Throwable, ResultSetIterator[A]] =
     for
-      ps <- prepareStatement(dbCon.connection, query.frag)
+      ps <- prepareStatement(connection, query.frag)
 
       _ = ps.setFetchSize(fetchSize)
 
@@ -217,7 +225,7 @@ extension [A](query: Query[A])
       rs,
       query.frag,
       query.reader,
-      dbCon.sqlLogger
+      SqlLogger.Default
     )
 
 extension (update: Update)
