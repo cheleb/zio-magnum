@@ -23,19 +23,12 @@ object MeshRepositorySpec
   override def spec: ZSpec[TestEnvironment & Scope, Any] =
     suite("ZIO Magnum")(
       test("ImmutableRepo ") {
-        val program = userRepo.zcount
-
-        program
+        userRepo.zcount
           .map(count => assert(count)(equalTo(5)))
       },
       test("Queying a table") {
-        val program = for {
-          users <- sql"SELECT * FROM users"
-            .zQuery[User]
-
-        } yield users
-
-        program
+        sql"SELECT * FROM users"
+          .zQuery[User]
           .map(users => assert(users.size)(equalTo(5)))
 
       },
