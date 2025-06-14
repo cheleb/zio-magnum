@@ -38,7 +38,7 @@ object MeshRepositorySpec
         val program = for {
           users <- sql"SELECT * FROM users"
             .query[User]
-            .zrun3
+            .zrun
 
         } yield users
 
