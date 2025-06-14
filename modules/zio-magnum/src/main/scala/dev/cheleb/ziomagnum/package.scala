@@ -14,7 +14,12 @@ import zio.Exit.Success
 import zio.Exit.Failure
 import scala.annotation.targetName
 
-val currentConnection: FiberRef[Option[Connection]] =
+/** ZIO Magnum is a ZIO-based library for working with SQL databases in a
+  * functional way.
+  */
+
+/** Current database connection for the fiber */
+private val currentConnection: FiberRef[Option[Connection]] =
   Unsafe.unsafe { implicit unsafe =>
     Runtime.default.unsafe
       .run(
@@ -24,7 +29,43 @@ val currentConnection: FiberRef[Option[Connection]] =
       .getOrThrow()
   }
 
-def scopedBestEffort[R, E, A <: AutoCloseable](
+/** Creates a new connection using the current DataSource in the fiber
+  *
+  * @return
+  */
+private def fiberRefConnection: ZIO[DataSource & Scope, Throwable, Connection] =
+  for {
+    env <- ZIO.service[DataSource]
+    connection <- scopedBestEffort(
+      ZIO.attemptBlocking(env.getConnection)
+    )
+    // Get the current value of auto-commit
+    prevAutoCommit <- ZIO.attemptBlocking(connection.getAutoCommit)
+    // Disable auto-commit since we need to be able to roll back. Once everything is done, set it
+    // to whatever the previous value was.
+    _ <- ZIO.acquireRelease(
+      ZIO.attemptBlocking(connection.setAutoCommit(false))
+    ) { _ =>
+      ZIO.attemptBlocking(connection.setAutoCommit(prevAutoCommit)).orDie
+    }
+
+    _ <- ZIO.acquireRelease(
+      currentConnection.set(Some(connection))
+    ) { _ =>
+      // Note. We are failing the fiber if auto-commit reset fails. For some circumstances this may be too aggresive.
+      // If the connection pool e.g. Hikari resets this property for a recycled connection anyway doing it here
+      // might not be necessary
+      currentConnection.set(None)
+    }
+    // Once the `use` of this outer-Scoped is done, rollback the connection if needed
+    _ <- ZIO.addFinalizerExit {
+      case Success(_) => ZIO.blocking(ZIO.succeed(connection.commit()))
+      case Failure(cause) =>
+        ZIO.blocking(ZIO.succeed(connection.rollback()))
+    }
+  } yield connection
+
+private def scopedBestEffort[R, E, A <: AutoCloseable](
     effect: ZIO[R, E, A]
 ): ZIO[R & Scope, E, A] =
   ZIO.acquireRelease(effect)(resource =>
@@ -38,8 +79,7 @@ def scopedBestEffort[R, E, A <: AutoCloseable](
       .ignore
   )
 
-def dbConLayer(
-): ZLayer[Scope & DataSource, Throwable, DbCon] =
+def dbConLayer(): ZLayer[Scope & DataSource, Throwable, DbCon] =
   ZLayer {
     for
       _ <- ZIO.logDebug("Creating DbCon layer")
@@ -63,58 +103,24 @@ def dataSourceLayer(jdbcUrl: String, username: String, password: String) =
 
 def transaction[R <: DataSource, U >: R, A](
     op: Connection ?=> ZIO[R, Throwable, A]
-): ZIO[R, Throwable, A] = {
-  ZIO.blocking(currentConnection.get.flatMap {
+): ZIO[R, Throwable, A] =
+  currentConnection.get.flatMap {
     // We can just return the op in the case that there is already a connection set on the fiber ref
     // because the op is execute___ which will lookup the connection from the fiber ref via onConnection/onConnectionStream
     // This will typically happen for nested transactions e.g. transaction(transaction(a *> b) *> c)
     case Some(connection) =>
       op(using connection)
     case None =>
-      val connection = for {
-        env <- ZIO.service[DataSource]
-        connection <- scopedBestEffort(
-          ZIO.attemptBlocking(env.getConnection)
-        )
-        // Get the current value of auto-commit
-        prevAutoCommit <- ZIO.attemptBlocking(connection.getAutoCommit)
-        // Disable auto-commit since we need to be able to roll back. Once everything is done, set it
-        // to whatever the previous value was.
-        _ <- ZIO.acquireRelease(
-          ZIO.attemptBlocking(connection.setAutoCommit(false))
-        ) { _ =>
-          ZIO.attemptBlocking(connection.setAutoCommit(prevAutoCommit)).orDie
-        }
-
-        _ <- ZIO.acquireRelease(
-          currentConnection.set(Some(connection))
-        ) { _ =>
-          // Note. We are failing the fiber if auto-commit reset fails. For some circumstances this may be too aggresive.
-          // If the connection pool e.g. Hikari resets this property for a recycled connection anyway doing it here
-          // might not be necessary
-          currentConnection.set(None)
-        }
-        // Once the `use` of this outer-Scoped is done, rollback the connection if needed
-        _ <- ZIO.addFinalizerExit {
-          case Success(_) => ZIO.blocking(ZIO.succeed(connection.commit()))
-          case Failure(cause) =>
-            ZIO.blocking(ZIO.succeed(connection.rollback()))
-        }
-      } yield connection
-
-      ZIO.scoped(connection.flatMap(db => op(using db)))
-  })
-}
+      ZIO.scoped(fiberRefConnection.flatMap(db => op(using db)))
+  }
 
 extension [A](query: Query[A])
 
-  def zrun: ZIO[Scope & DbCon, Throwable, Vector[A]] =
+  private def exec(connection: Connection) = ZIO.scoped:
     for
-      dbCon <- ZIO.service[DbCon]
-
       ps <- ZIO.fromAutoCloseable(
         ZIO.attemptBlockingIO(
-          dbCon.connection.prepareStatement(query.frag.sqlString)
+          connection.prepareStatement(query.frag.sqlString)
         )
       )
       _ = query.frag.writer.write(ps, 1)
@@ -122,8 +128,25 @@ extension [A](query: Query[A])
       rs <- ZIO.fromAutoCloseable(
         ZIO.attemptBlockingIO(ps.executeQuery())
       )
-      res = query.reader.read(rs)
+    yield query.reader.read(rs)
+
+  def zrun: ZIO[Scope & DbCon, Throwable, Vector[A]] =
+    for
+      dbCon <- ZIO.service[DbCon]
+
+      res <- exec(dbCon.connection)
     yield res
+
+  def zrun3[R <: DataSource]: ZIO[R, Throwable, Vector[A]] =
+    currentConnection.get.flatMap {
+      // We can just return the op in the case that there is already a connection set on the fiber ref
+      // because the op is execute___ which will lookup the connection from the fiber ref via onConnection/onConnectionStream
+      // This will typically happen for nested transactions e.g. transaction(transaction(a *> b) *> c)
+      case Some(connection) => exec(connection)
+      //  op(using connection)
+      case None =>
+        ZIO.scoped(fiberRefConnection.flatMap(db => exec(db)))
+    }
 
   def trun(using connection: Connection): Task[Vector[A]] = ZIO.scoped:
     for
@@ -172,6 +195,17 @@ extension [A](query: Query[A])
     )
 
 extension (update: Update)
+
+  private def exec(connection: Connection) = ZIO.scoped:
+    for
+      ps <- ZIO.fromAutoCloseable(
+        ZIO.attemptBlockingIO(
+          connection.prepareStatement(update.frag.sqlString)
+        )
+      )
+      _ = update.frag.writer.write(ps, 1)
+    yield ps.executeUpdate()
+
   @targetName("update")
   def zrun: ZIO[Scope & DbCon, Throwable, Int] =
     for
@@ -200,3 +234,14 @@ extension (update: Update)
 
       res = update.run()(using dbCon)
     yield res
+
+  def zrun3[R <: DataSource]: ZIO[R, Throwable, Int] =
+    currentConnection.get.flatMap {
+      // We can just return the op in the case that there is already a connection set on the fiber ref
+      // because the op is execute___ which will lookup the connection from the fiber ref via onConnection/onConnectionStream
+      // This will typically happen for nested transactions e.g. transaction(transaction(a *> b) *> c)
+      case Some(connection) => exec(connection)
+      //  op(using connection)
+      case None =>
+        ZIO.scoped(fiberRefConnection.flatMap(db => exec(db)))
+    }

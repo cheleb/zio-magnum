@@ -38,13 +38,13 @@ object MeshRepositorySpec
         val program = for {
           users <- sql"SELECT * FROM users"
             .query[User]
-            .zrun
+            .zrun3
 
         } yield users
 
         program
           .map(users => assert(users.size)(equalTo(5)))
-          .provideSomeLayer(dbConLayer())
+
       },
       test("Streaming a table") {
         val program = for {
