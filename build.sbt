@@ -1,4 +1,4 @@
-val scala3Version = "3.7.0"
+val scala3Version = "3.7.1"
 
 inThisBuild(
   Seq(
@@ -12,7 +12,7 @@ lazy val root = project
     name := "ZIO Magnum",
     version := "0.1.0-SNAPSHOT",
     scalaVersion := scala3Version,
-    libraryDependencies += "org.scalameta" %% "munit" % "1.0.0" % Test
+    libraryDependencies += "org.scalameta" %% "munit" % "1.1.0" % Test
   )
 
 val testcontainersVersion = "0.41.4"
@@ -26,10 +26,16 @@ lazy val magnumZio = project
     Test / fork := true,
     libraryDependencies ++= Seq(
       "com.augustnagro" %% "magnum" % magnumVersion,
-      "dev.zio" %% "zio" % "2.1.18",
+      "dev.zio" %% "zio" % "2.1.19",
+      "dev.zio" %% "zio-streams" % "2.1.19",
+      "com.zaxxer" % "HikariCP" % "6.2.1",
       "org.scalameta" %% "munit" % munitVersion % Test,
       "com.dimafeng" %% "testcontainers-scala-munit" % testcontainersVersion % Test,
       "com.dimafeng" %% "testcontainers-scala-postgresql" % testcontainersVersion % Test,
-      "org.postgresql" % "postgresql" % postgresDriverVersion % Test
+      "org.postgresql" % "postgresql" % postgresDriverVersion % Test,
+      "dev.zio" %% "zio-test" % "2.1.19" % Test,
+      "dev.zio" %% "zio-test-sbt" % "2.1.19" % Test,
+      "ch.qos.logback" % "logback-classic" % "1.5.6" % Test,
+      "dev.zio" %% "zio-logging-slf4j" % "2.2.4" % Test
     )
   )
