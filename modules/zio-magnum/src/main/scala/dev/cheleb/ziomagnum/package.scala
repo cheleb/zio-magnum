@@ -3,13 +3,13 @@ package com.augustnagro.magnum.ziomagnum
 import zio.*
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import com.augustnagro.magnum.*
-import javax.sql.DataSource
+import javax.sql.*
 
 import zio.stream.ZStream
 import scala.util.Using
 import scala.util.Try
 import java.io.IOException
-import java.sql.Connection
+import java.sql.*
 import zio.Exit.Success
 import zio.Exit.Failure
 import scala.annotation.targetName
@@ -28,6 +28,19 @@ private val currentConnection: FiberRef[Option[Connection]] =
       )
       .getOrThrow()
   }
+
+private def prepareStatement(
+    connection: Connection,
+    frag: Frag
+): ZIO[Scope, Throwable, java.sql.PreparedStatement] = for
+  ps <- ZIO
+    .fromAutoCloseable(
+      ZIO.attemptBlockingIO(
+        connection.prepareStatement(frag.sqlString)
+      )
+    )
+  _ = frag.writer.write(ps, 1)
+yield ps
 
 /** Creates a new connection using the current DataSource in the fiber
   *
@@ -118,13 +131,7 @@ extension [A](query: Query[A])
 
   private def exec(connection: Connection) = ZIO.scoped:
     for
-      ps <- ZIO.fromAutoCloseable(
-        ZIO.attemptBlockingIO(
-          connection.prepareStatement(query.frag.sqlString)
-        )
-      )
-      _ = query.frag.writer.write(ps, 1)
-
+      ps <- prepareStatement(connection, query.frag)
       rs <- ZIO.fromAutoCloseable(
         ZIO.attemptBlockingIO(ps.executeQuery())
       )
@@ -151,12 +158,7 @@ extension [A](query: Query[A])
   def trun(using connection: Connection): Task[Vector[A]] = ZIO.scoped:
     for
 
-      ps <- ZIO.fromAutoCloseable(
-        ZIO.attemptBlockingIO(
-          connection.prepareStatement(query.frag.sqlString)
-        )
-      )
-      _ = query.frag.writer.write(ps, 1)
+      ps <- prepareStatement(connection, query.frag)
 
       rs <- ZIO.fromAutoCloseable(
         ZIO.attemptBlockingIO(ps.executeQuery())
@@ -174,15 +176,11 @@ extension [A](query: Query[A])
     )
   private def ziterator(
       fetchSize: Int
-  )(using dbCon: DbCon): ZIO[Scope, IOException, ResultSetIterator[A]] =
+  )(using dbCon: DbCon): ZIO[Scope, Throwable, ResultSetIterator[A]] =
     for
-      ps <- ZIO.fromAutoCloseable(
-        ZIO.attemptBlockingIO(
-          dbCon.connection.prepareStatement(query.frag.sqlString)
-        )
-      )
+      ps <- prepareStatement(dbCon.connection, query.frag)
+
       _ = ps.setFetchSize(fetchSize)
-      _ = query.frag.writer.write(ps, 1)
 
       rs <- ZIO.fromAutoCloseable(
         ZIO.attemptBlockingIO(ps.executeQuery())
