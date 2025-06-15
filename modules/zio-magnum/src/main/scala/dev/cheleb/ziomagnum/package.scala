@@ -113,6 +113,11 @@ private def fiberRefConnection(
     })
   } yield connection
 
+/** Runs the effect and ensures that the resource is closed when done.
+  *
+  * @param effect
+  * @return
+  */
 private def scopedBestEffort[R, E, A <: AutoCloseable](
     effect: ZIO[R, E, A]
 ): ZIO[R & Scope, E, A] =
@@ -127,6 +132,13 @@ private def scopedBestEffort[R, E, A <: AutoCloseable](
       .ignore
   )
 
+/** Creates a ZLayer that provides a DataSource using HikariCP.
+  *
+  * @param jdbcUrl
+  * @param username
+  * @param password
+  * @return
+  */
 def dataSourceLayer(jdbcUrl: String, username: String, password: String) =
   ZLayer(ZIO.fromAutoCloseable {
     ZIO.attemptBlockingIO {
@@ -192,8 +204,19 @@ def transaction[R <: DataSource, A](
         fiberRefConnection(true).flatMap(db => op(using db))
   }
 
+/** Provides a ZIO-based query interface for the given `Query[A]`.
+  */
 extension [A](query: Query[A])(using reader: DbCodec[A])
 
+  /** An ZIO that:
+    *   - prepares the statement
+    *   - runs the query
+    *   - returns a vector of results.
+    *
+    * @param connection
+    *   The database connection to use.
+    * @return
+    */
   private def toZIO(connection: Connection) = ZIO.scoped:
     for
       ps <- prepareStatement(connection, query.frag)
@@ -202,10 +225,22 @@ extension [A](query: Query[A])(using reader: DbCodec[A])
       )
     yield reader.read(rs)
 
+  /** Runs the query and returns a vector of results.
+    *
+    * @param reader
+    * @param R
+    * @return
+    */
   private def zrun[R <: DataSource]: ZIO[R, Throwable, Vector[A]] =
     withConnection:
       toZIO
 
+  /** Runs the query and returns a stream of results.
+    * @param A
+    *   the type of the results.
+    * @param fetchSize
+    *   the number of rows to fetch at a time from the database.
+    */
   private def zstream(fetchSize: Int): ZStream[DataSource, Throwable, A] =
     ZStream.unwrapScoped(
       withScopedConnection:
@@ -213,6 +248,13 @@ extension [A](query: Query[A])(using reader: DbCodec[A])
           .map: it =>
             ZStream.fromIterator(it)
     )
+
+  /** Creates a `ResultSetIterator` for the given `Query[A]`.
+    *
+    * @param fetchSize
+    *   the number of rows to fetch at a time from the database.
+    * @return
+    */
   private def ziterator(
       fetchSize: Int
   )(using connection: Connection): ZIO[Scope, Throwable, ResultSetIterator[A]] =
@@ -231,8 +273,19 @@ extension [A](query: Query[A])(using reader: DbCodec[A])
       SqlLogger.Default
     )
 
+/** Provides a ZIO-based update interface for the given `Update`.
+  */
 extension (update: Update)
 
+  /** An ZIO that:
+    *   - prepares the statement
+    *   - runs the update
+    *   - returns the number of rows affected.
+    *
+    * @param connection
+    *   The database connection to use.
+    * @return
+    */
   private def toZIO(connection: Connection) = ZIO.scoped:
     for
       ps <- ZIO.fromAutoCloseable(
@@ -246,22 +299,55 @@ extension (update: Update)
   def zrun[R <: DataSource]: ZIO[R, Throwable, Int] = withConnection:
     toZIO
 
+/** Provides a ZIO-based query interface for the given `Frag`.
+  */
 extension (frag: Frag)
-  def zQuery[A: DbCodec] =
+  /** Runs the query and returns a vector of results.
+    *
+    * @param A
+    * @return
+    */
+  def zQuery[A: DbCodec]: ZIO[DataSource, Throwable, Vector[A]] =
     frag.query[A].zrun
 
-  def zUpdate =
+  /** Runs the update and returns the number of rows affected.
+    *
+    * @return
+    */
+  def zUpdate: ZIO[DataSource, Throwable, Int] =
     frag.update.zrun
 
+  /** Runs the query and returns a stream of results.
+    *
+    * @param A
+    *   the type of the results.
+    * @param fetchSize
+    *   the number of rows to fetch at a time from the database.
+    */
   def zStream[A: DbCodec](fetchSize: Int = 10) =
     frag.query[A].zstream(fetchSize)
 
+/** Provides a ZIO-based query interface for the given `ImmutableRepo`.
+  */
 extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
+
+  /** An ZIO that:
+    *   - counts the number of rows in the table.
+    *
+    * @return
+    */
   def zcount: ZIO[R, Throwable, Long] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.count
 
+  /** An ZIO that:
+    *   - checks if a row with the given id exists in the table.
+    *
+    * @param id
+    *   The id of the row to check.
+    * @return
+    */
   def zExistsById(
       id: K
   ): ZIO[R, Throwable, Boolean] =
@@ -269,6 +355,9 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
       ZIO.attemptBlocking:
         repo.existsById(id)
 
+  /** An ZIO that:
+    *   - finds a row by its id.
+    */
   def zFindById(
       id: K
   ): ZIO[R, Throwable, Option[A]] =
@@ -276,17 +365,35 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
       ZIO.attemptBlocking:
         repo.findById(id)
 
+  /** An ZIO that:
+    *   - finds all rows in the table.
+    *
+    * @return
+    */
   def zFindAll: ZIO[R, Throwable, Vector[A]] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.findAll
 
-  @targetName("zFindAllSpec")
+  /** An ZIO that:
+    *   - finds all rows that match the given spec.
+    *
+    * @param spec
+    *   The specification to use for filtering the results.
+    * @return
+    */
   def zFindAll(spec: Spec[A]): ZIO[R, Throwable, Vector[A]] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.findAll(spec)
 
+  /** An ZIO that:
+    *   - finds all rows with the given ids.
+    *
+    * @param ids
+    *   The set of ids to find.
+    * @return
+    */
   def zFindAllById(
       ids: Set[K]
   ): ZIO[R, Throwable, Vector[A]] =
@@ -294,8 +401,15 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
       ZIO.attemptBlocking:
         repo.findAllById(ids)
 
+/** Provides a ZIO-based query interface for the given `Repo`.
+  */
 extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
 
+  /** An ZIO that:
+    *   - counts the number of rows in the table.
+    *
+    * @return
+    */
   def zDeleteById(
       id: K
   ): ZIO[R, Throwable, Unit] =
@@ -303,9 +417,118 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
       ZIO.attemptBlocking:
         repo.deleteById(id)
 
+  /** An ZIO that:
+    *   - deletes all rows in the table.
+    *
+    * @param set
+    *   The set of elements to delete.
+    * @return
+    */
+  def zDeleteAll(
+      set: Set[A]
+  ): ZIO[R, Throwable, Unit] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.deleteAll(set)
+
+  /** An ZIO that:
+    *   - deletes all rows with the given ids.
+    *
+    * @param ids
+    *   The set of ids to delete.
+    * @return
+    */
+  def zDeleteAllById(
+      ids: Set[K]
+  ): ZIO[R, Throwable, Unit] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.deleteAllById(ids)
+
+  /** An ZIO that:
+    *   - inserts a new row into the table.
+    *
+    * @param a
+    *   The element to insert.
+    * @return
+    */
   def zInsert(
       a: EC
   ): ZIO[R, Throwable, Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.insert(a)
+
+  /** An ZIO that:
+    *   - inserts a new row into the table and returns the inserted element.
+    *
+    * @param a
+    *   The element to insert.
+    * @return
+    *   the inserted element.
+    */
+  def zInsertReturning(
+      a: EC
+  ): ZIO[R, Throwable, A] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.insertReturning(a)
+
+  /** An ZIO that:
+    *   - inserts all elements in the set into the table.
+    *
+    * @param set
+    *   The set of elements to insert.
+    * @return
+    *   The inserted elements.
+    */
+  def zInsertAll(
+      set: Set[EC]
+  ): ZIO[R, Throwable, Unit] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.insertAll(set)
+
+  /** An ZIO that:
+    *   - inserts all elements in the set into the table and returns the
+    *     inserted elements.
+    *
+    * @param set
+    *   The set of elements to insert.
+    * @return
+    *   The inserted elements.
+    */
+  def zInsertAllReturning(
+      set: Set[EC]
+  ): ZIO[R, Throwable, Vector[A]] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.insertAllReturning(set)
+
+  /** An ZIO that:
+    *   - updates an existing row in the table.
+    *
+    * @param a
+    *   The element to update.
+    * @return
+    */
+  def zUpdate(
+      a: A
+  ): ZIO[R, Throwable, Unit] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.update(a)
+
+  /** An ZIO that:
+    *   - updates all elements in the set.
+    *
+    * @param set
+    *   The set of elements to update.
+    * @return
+    */
+  def zUpdateAll(
+      set: Set[A]
+  ): ZIO[R, Throwable, BatchUpdateResult] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.updateAll(set)

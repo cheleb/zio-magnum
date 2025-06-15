@@ -29,8 +29,7 @@ Compile / doc / scalacOptions ++= Seq(
   // "static-site-main",
   "-project-footer",
   s"Copyright (c) 2022-$currentYear, Olivier NOUGUIER",
-  // custom::https://www.linkedin.com/in/olivier-nouguier::linkedinday.png::linkedinnight.png
-  "-social-links:github::https://github.com/cheleb,twitter::https://twitter.com/oNouguier",
+  "-social-links:github::https://github.com/cheleb/zio-magnum,twitter::https://twitter.com/oNouguier,linkedIn::https://www.linkedin.com/in/olivier-nouguier::linkedin-day.png::linkedin-night.png,bluesky::https://bsky.app/profile/onouguier.bsky.social::bluesky-day.svg::bluesky-night.jpg",
   "-Ygenerate-inkuire",
   "-skip-by-regex:facades\\..*",
   "-skip-by-regex:samples\\..*",
