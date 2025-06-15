@@ -60,7 +60,7 @@ object TransactorSpec
 
       },
       test("Transactor rolls back a transaction with repo") {
-        val program =
+        val program: RIO[DataSource, Vector[Int]] =
           for
             tx <- transaction(
               userRepo.zInsert(User(0, "Test User"))

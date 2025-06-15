@@ -1,21 +1,10 @@
-# Getting Started
-
-## Installation
-
-
-Not decided yet, but likely integrated with main stream zio support.
-
-## Sample
-
-Here is a simple example of how to use ZIO Magnum in a Scala application:
-
-```scala sc:nocompile
 package demo
 
 import zio.*
 
 import com.augustnagro.magnum.*
 import com.augustnagro.magnum.ziomagnum.*
+import javax.sql.DataSource
 
 object ZIOMagnumDemo extends zio.ZIOAppDefault:
 
@@ -24,7 +13,6 @@ object ZIOMagnumDemo extends zio.ZIOAppDefault:
 
   val repo = Repo[User, User, Int]
 
-  // Example of inserting a user into the database
   private val program: RIO[DataSource, Unit] = repo.zInsert(User(0, "Alice"))
 
   override def run = program
@@ -35,10 +23,3 @@ object ZIOMagnumDemo extends zio.ZIOAppDefault:
         "user",
         "password"
       )
-
-```
-
-See more sample in [usage](./usage.md).
-
-
-

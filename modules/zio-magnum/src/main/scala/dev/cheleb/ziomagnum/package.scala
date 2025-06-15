@@ -35,8 +35,8 @@ private val currentConnection: FiberRef[Option[Connection]] =
  * connection using the DataSource, put it in the fiberRef, and remove it when done.
  */
 private def withConnection[R <: DataSource, A](
-    op: Connection => ZIO[R, Throwable, A]
-): ZIO[R, Throwable, A] =
+    op: Connection => RIO[R, A]
+): RIO[R, A] =
   currentConnection.get.flatMap {
     case Some(connection) => op(connection)
     case None =>
@@ -44,8 +44,8 @@ private def withConnection[R <: DataSource, A](
   }
 
 private def withDbConnection[R <: DataSource, A](
-    op: DbCon ?=> ZIO[R, Throwable, A]
-): ZIO[R, Throwable, A] =
+    op: DbCon ?=> RIO[R, A]
+): RIO[R, A] =
   currentConnection.get.flatMap {
     case Some(connection) => op(using DbCon(connection, SqlLogger.Default))
     case None =>
@@ -57,7 +57,7 @@ private def withDbConnection[R <: DataSource, A](
   }
 
 private def withScopedConnection[R <: DataSource & Scope, A](
-    op: Connection ?=> ZIO[R, Throwable, A]
+    op: Connection ?=> RIO[R, A]
 ): ZIO[R, Throwable, A] =
   currentConnection.get.flatMap {
     case Some(connection) => op(using connection)
@@ -68,7 +68,7 @@ private def withScopedConnection[R <: DataSource & Scope, A](
 private def prepareStatement(
     connection: Connection,
     frag: Frag
-): ZIO[Scope, Throwable, java.sql.PreparedStatement] = for
+): RIO[Scope, PreparedStatement] = for
   ps <- ZIO
     .fromAutoCloseable(
       ZIO.attemptBlockingIO(
@@ -89,7 +89,7 @@ yield ps
   */
 private def fiberRefConnection(
     tx: Boolean
-): ZIO[DataSource & Scope, Throwable, Connection] =
+): RIO[DataSource & Scope, Connection] =
   for {
     dataSource <- ZIO.service[DataSource]
     connection <- scopedBestEffort(
@@ -167,8 +167,8 @@ def dataSourceLayer(jdbcUrl: String, username: String, password: String) =
   * @return
   */
 def transaction[R <: DataSource, A](
-    op: Connection ?=> ZIO[R, Throwable, A]
-): ZIO[R, Throwable, A] =
+    op: Connection ?=> RIO[R, A]
+): RIO[R, A] =
   currentConnection.get.flatMap {
     case Some(connection) =>
       ZIO.scoped:
@@ -217,11 +217,11 @@ extension [A](query: Query[A])(using reader: DbCodec[A])
     *   The database connection to use.
     * @return
     */
-  private def toZIO(connection: Connection) = ZIO.scoped:
+  private def toZIO(connection: Connection): Task[Vector[A]] = ZIO.scoped:
     for
       ps <- prepareStatement(connection, query.frag)
       rs <- ZIO.fromAutoCloseable(
-        ZIO.attemptBlockingIO(ps.executeQuery())
+        ZIO.attemptBlocking(ps.executeQuery())
       )
     yield reader.read(rs)
 
@@ -231,7 +231,7 @@ extension [A](query: Query[A])(using reader: DbCodec[A])
     * @param R
     * @return
     */
-  private def zrun[R <: DataSource]: ZIO[R, Throwable, Vector[A]] =
+  private def zrun[R <: DataSource]: RIO[R, Vector[A]] =
     withConnection:
       toZIO
 
@@ -257,14 +257,14 @@ extension [A](query: Query[A])(using reader: DbCodec[A])
     */
   private def ziterator(
       fetchSize: Int
-  )(using connection: Connection): ZIO[Scope, Throwable, ResultSetIterator[A]] =
+  )(using connection: Connection): RIO[Scope, ResultSetIterator[A]] =
     for
       ps <- prepareStatement(connection, query.frag)
 
       _ = ps.setFetchSize(fetchSize)
 
       rs <- ZIO.fromAutoCloseable(
-        ZIO.attemptBlockingIO(ps.executeQuery())
+        ZIO.attemptBlocking(ps.executeQuery())
       )
     yield ResultSetIterator(
       rs,
@@ -286,17 +286,17 @@ extension (update: Update)
     *   The database connection to use.
     * @return
     */
-  private def toZIO(connection: Connection) = ZIO.scoped:
+  private def toZIO(connection: Connection): Task[Int] = ZIO.scoped:
     for
       ps <- ZIO.fromAutoCloseable(
-        ZIO.attemptBlockingIO(
+        ZIO.attemptBlocking(
           connection.prepareStatement(update.frag.sqlString)
         )
       )
       _ = update.frag.writer.write(ps, 1)
     yield ps.executeUpdate()
 
-  def zrun[R <: DataSource]: ZIO[R, Throwable, Int] = withConnection:
+  def zrun[R <: DataSource]: RIO[R, Int] = withConnection:
     toZIO
 
 /** Provides a ZIO-based query interface for the given `Frag`.
@@ -307,14 +307,14 @@ extension (frag: Frag)
     * @param A
     * @return
     */
-  def zQuery[A: DbCodec]: ZIO[DataSource, Throwable, Vector[A]] =
+  def zQuery[A: DbCodec]: RIO[DataSource, Vector[A]] =
     frag.query[A].zrun
 
   /** Runs the update and returns the number of rows affected.
     *
     * @return
     */
-  def zUpdate: ZIO[DataSource, Throwable, Int] =
+  def zUpdate: RIO[DataSource, Int] =
     frag.update.zrun
 
   /** Runs the query and returns a stream of results.
@@ -324,7 +324,9 @@ extension (frag: Frag)
     * @param fetchSize
     *   the number of rows to fetch at a time from the database.
     */
-  def zStream[A: DbCodec](fetchSize: Int = 10) =
+  def zStream[A: DbCodec](
+      fetchSize: Int = 10
+  ): ZStream[DataSource, Throwable, A] =
     frag.query[A].zstream(fetchSize)
 
 /** Provides a ZIO-based query interface for the given `ImmutableRepo`.
@@ -357,7 +359,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
     */
   def zFindById(
       id: K
-  ): ZIO[R, Throwable, Option[A]] =
+  ): RIO[R, Option[A]] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.findById(id)
@@ -366,7 +368,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
     *
     * @return
     */
-  def zFindAll: ZIO[R, Throwable, Vector[A]] =
+  def zFindAll: RIO[R, Vector[A]] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.findAll
@@ -377,7 +379,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
     *   The specification to use for filtering the results.
     * @return
     */
-  def zFindAll(spec: Spec[A]): ZIO[R, Throwable, Vector[A]] =
+  def zFindAll(spec: Spec[A]): RIO[R, Vector[A]] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.findAll(spec)
@@ -390,7 +392,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
     */
   def zFindAllById(
       ids: Set[K]
-  ): ZIO[R, Throwable, Vector[A]] =
+  ): RIO[R, Vector[A]] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.findAllById(ids)
@@ -405,7 +407,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
     */
   def zDeleteById(
       id: K
-  ): ZIO[R, Throwable, Unit] =
+  ): RIO[R, Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.deleteById(id)
@@ -418,7 +420,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
     */
   def zDeleteAll(
       set: Set[A]
-  ): ZIO[R, Throwable, Unit] =
+  ): RIO[R, Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.deleteAll(set)
@@ -431,7 +433,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
     */
   def zDeleteAllById(
       ids: Set[K]
-  ): ZIO[R, Throwable, Unit] =
+  ): RIO[R, Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.deleteAllById(ids)
@@ -444,7 +446,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
     */
   def zInsert(
       a: EC
-  ): ZIO[R, Throwable, Unit] =
+  ): RIO[R, Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.insert(a)
@@ -458,7 +460,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
     */
   def zInsertReturning(
       a: EC
-  ): ZIO[R, Throwable, A] =
+  ): RIO[R, A] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.insertReturning(a)
@@ -472,7 +474,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
     */
   def zInsertAll(
       set: Set[EC]
-  ): ZIO[R, Throwable, Unit] =
+  ): RIO[R, Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.insertAll(set)
@@ -486,7 +488,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
     */
   def zInsertAllReturning(
       set: Set[EC]
-  ): ZIO[R, Throwable, Vector[A]] =
+  ): RIO[R, Vector[A]] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.insertAllReturning(set)
@@ -495,7 +497,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
     *
     * @return
     */
-  def zTrucate(): ZIO[R, Throwable, Unit] =
+  def zTruncate(): RIO[R, Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.truncate()
@@ -508,7 +510,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
     */
   def zUpdate(
       a: A
-  ): ZIO[R, Throwable, Unit] =
+  ): RIO[R, Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.update(a)
@@ -521,7 +523,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
     */
   def zUpdateAll(
       set: Set[A]
-  ): ZIO[R, Throwable, BatchUpdateResult] =
+  ): RIO[R, BatchUpdateResult] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.updateAll(set)
