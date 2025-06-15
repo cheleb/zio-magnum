@@ -16,7 +16,7 @@ lazy val root = project
   )
 
 val testcontainersVersion = "0.41.4"
-val munitVersion = "1.1.0"
+val munitVersion = "1.1.1"
 val postgresDriverVersion = "42.7.7"
 val magnumVersion = "2.0.0-M2"
 
