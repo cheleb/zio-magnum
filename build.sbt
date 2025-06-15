@@ -18,7 +18,7 @@ lazy val root = project
 val testcontainersVersion = "0.41.4"
 val munitVersion = "1.1.0"
 val postgresDriverVersion = "42.7.4"
-val magnumVersion = "1.3.1"
+val magnumVersion = "2.0.0-M2"
 
 lazy val magnumZio = project
   .in(file("modules/zio-magnum"))
