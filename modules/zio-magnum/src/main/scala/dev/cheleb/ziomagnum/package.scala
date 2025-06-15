@@ -331,8 +331,7 @@ extension (frag: Frag)
   */
 extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
 
-  /** An ZIO that:
-    *   - counts the number of rows in the table.
+  /** Counts the number of rows in the table.
     *
     * @return
     */
@@ -341,8 +340,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
       ZIO.attemptBlocking:
         repo.count
 
-  /** An ZIO that:
-    *   - checks if a row with the given id exists in the table.
+  /** Checks if a row with the given id exists in the table.
     *
     * @param id
     *   The id of the row to check.
@@ -355,8 +353,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
       ZIO.attemptBlocking:
         repo.existsById(id)
 
-  /** An ZIO that:
-    *   - finds a row by its id.
+  /** Finds a row by its id.
     */
   def zFindById(
       id: K
@@ -365,8 +362,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
       ZIO.attemptBlocking:
         repo.findById(id)
 
-  /** An ZIO that:
-    *   - finds all rows in the table.
+  /** Finds all rows in the table.
     *
     * @return
     */
@@ -375,8 +371,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
       ZIO.attemptBlocking:
         repo.findAll
 
-  /** An ZIO that:
-    *   - finds all rows that match the given spec.
+  /** Finds all rows that match the given spec.
     *
     * @param spec
     *   The specification to use for filtering the results.
@@ -387,8 +382,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
       ZIO.attemptBlocking:
         repo.findAll(spec)
 
-  /** An ZIO that:
-    *   - finds all rows with the given ids.
+  /** Finds all rows with the given ids.
     *
     * @param ids
     *   The set of ids to find.
@@ -405,8 +399,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
   */
 extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
 
-  /** An ZIO that:
-    *   - counts the number of rows in the table.
+  /** Counts the number of rows in the table.
     *
     * @return
     */
@@ -417,8 +410,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
       ZIO.attemptBlocking:
         repo.deleteById(id)
 
-  /** An ZIO that:
-    *   - deletes all rows in the table.
+  /** Deletes all rows in the table.
     *
     * @param set
     *   The set of elements to delete.
@@ -431,8 +423,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
       ZIO.attemptBlocking:
         repo.deleteAll(set)
 
-  /** An ZIO that:
-    *   - deletes all rows with the given ids.
+  /** Deletes all rows with the given ids.
     *
     * @param ids
     *   The set of ids to delete.
@@ -445,8 +436,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
       ZIO.attemptBlocking:
         repo.deleteAllById(ids)
 
-  /** An ZIO that:
-    *   - inserts a new row into the table.
+  /** Inserts a new row into the table.
     *
     * @param a
     *   The element to insert.
@@ -459,8 +449,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
       ZIO.attemptBlocking:
         repo.insert(a)
 
-  /** An ZIO that:
-    *   - inserts a new row into the table and returns the inserted element.
+  /** Inserts a new row into the table and returns the inserted element.
     *
     * @param a
     *   The element to insert.
@@ -474,8 +463,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
       ZIO.attemptBlocking:
         repo.insertReturning(a)
 
-  /** An ZIO that:
-    *   - inserts all elements in the set into the table.
+  /** Inserts all elements in the set into the table.
     *
     * @param set
     *   The set of elements to insert.
@@ -489,9 +477,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
       ZIO.attemptBlocking:
         repo.insertAll(set)
 
-  /** An ZIO that:
-    *   - inserts all elements in the set into the table and returns the
-    *     inserted elements.
+  /** Inserts all elements in the set into the table
     *
     * @param set
     *   The set of elements to insert.
@@ -505,8 +491,16 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
       ZIO.attemptBlocking:
         repo.insertAllReturning(set)
 
-  /** An ZIO that:
-    *   - updates an existing row in the table.
+  /** Truncates the table, removing all rows.
+    *
+    * @return
+    */
+  def zTrucate(): ZIO[R, Throwable, Unit] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.truncate()
+
+  /** Updates an existing row in the table.
     *
     * @param a
     *   The element to update.
@@ -519,8 +513,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
       ZIO.attemptBlocking:
         repo.update(a)
 
-  /** An ZIO that:
-    *   - updates all elements in the set.
+  /** Updates all elements in the set.
     *
     * @param set
     *   The set of elements to update.
