@@ -293,3 +293,19 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
     withDbConnection:
       ZIO.attemptBlocking:
         repo.findAllById(ids)
+
+extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
+
+  def zDeleteById(
+      id: K
+  ): ZIO[R, Throwable, Unit] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.deleteById(id)
+
+  def zInsert(
+      a: EC
+  ): ZIO[R, Throwable, Unit] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.insert(a)

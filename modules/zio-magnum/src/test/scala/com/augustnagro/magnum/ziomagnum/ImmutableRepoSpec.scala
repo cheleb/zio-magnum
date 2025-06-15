@@ -10,13 +10,13 @@ import zio.logging.LogFormat
 
 @SqlName("users")
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
-case class User(id: Int, name: String) derives DbCodec
-
-val userRepo = ImmutableRepo[User, Int]
+case class User(@Id id: Int, name: String) derives DbCodec
 
 object ImmutableRepoSpec
     extends ZIOSpecDefault
     with RepositorySpec("sql/users.sql") {
+
+  val userRepo = ImmutableRepo[User, Int]
 
   val uspec = Spec[User]
     .where(sql"name ILIKE 'Ch%'")
