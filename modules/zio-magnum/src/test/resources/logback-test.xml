@@ -5,7 +5,7 @@
         </encoder>
     </appender>
 
-    <logger name="com.augustnagro.magnum.ziomagnum" level="DEBUG" />
+    <logger name="com.augustnagro.magnum.ziomagnum" level="INFO" />
 
     <root level="WARN">
         <appender-ref ref="STDOUT" />
