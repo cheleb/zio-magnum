@@ -43,6 +43,19 @@ private def withConnection[R <: DataSource, A](
       ZIO.scoped(fiberRefConnection(false).flatMap(db => op(db)))
   }
 
+private def withDbConnection[R <: DataSource, A](
+    op: DbCon ?=> ZIO[R, Throwable, A]
+): ZIO[R, Throwable, A] =
+  currentConnection.get.flatMap {
+    case Some(connection) => op(using DbCon(connection, SqlLogger.Default))
+    case None =>
+      ZIO.scoped(
+        fiberRefConnection(false).flatMap(connection =>
+          op(using DbCon(connection, SqlLogger.Default))
+        )
+      )
+  }
+
 private def withScopedConnection[R <: DataSource & Scope, A](
     op: Connection ?=> ZIO[R, Throwable, A]
 ): ZIO[R, Throwable, A] =
@@ -179,7 +192,7 @@ def transaction[R <: DataSource, A](
         fiberRefConnection(true).flatMap(db => op(using db))
   }
 
-extension [A](query: Query[A])
+extension [A](query: Query[A])(using reader: DbCodec[A])
 
   private def toZIO(connection: Connection) = ZIO.scoped:
     for
@@ -187,7 +200,7 @@ extension [A](query: Query[A])
       rs <- ZIO.fromAutoCloseable(
         ZIO.attemptBlockingIO(ps.executeQuery())
       )
-    yield query.reader.read(rs)
+    yield reader.read(rs)
 
   private def zrun[R <: DataSource]: ZIO[R, Throwable, Vector[A]] =
     withConnection:
@@ -214,7 +227,7 @@ extension [A](query: Query[A])
     yield ResultSetIterator(
       rs,
       query.frag,
-      query.reader,
+      reader,
       SqlLogger.Default
     )
 
@@ -243,18 +256,40 @@ extension (frag: Frag)
   def zStream[A: DbCodec](fetchSize: Int = 10) =
     frag.query[A].zstream(fetchSize)
 
-extension [A, K](repo: ImmutableRepo[A, K])
-  def zcount[R <: DataSource]: ZIO[R, Throwable, Long] =
-    withConnection: conn =>
+extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
+  def zcount: ZIO[R, Throwable, Long] =
+    withDbConnection:
       ZIO.attemptBlocking:
-        repo.count(using DbCon(conn, SqlLogger.Default))
-  // TODO implement findById and findAll methods ...
-  // def findById[R <: DataSource](
-  //     id: K
-  // )(using DbCon: DbCon): ZIO[R, Throwable, Option[A]] =
-  //   repo.findById(id).zrun
+        repo.count
 
-  // def findAll[R <: DataSource](
-  //     using DbCon: DbCon
-  // ): ZIO[R, Throwable, Vector[A]] =
-  //   repo.findAll.zrun
+  def zExistsById(
+      id: K
+  ): ZIO[R, Throwable, Boolean] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.existsById(id)
+
+  def zFindById(
+      id: K
+  ): ZIO[R, Throwable, Option[A]] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.findById(id)
+
+  def zFindAll: ZIO[R, Throwable, Vector[A]] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.findAll
+
+  @targetName("zFindAllSpec")
+  def zFindAll(spec: Spec[A]): ZIO[R, Throwable, Vector[A]] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.findAll(spec)
+
+  def zFindAllById(
+      ids: Set[K]
+  ): ZIO[R, Throwable, Vector[A]] =
+    withDbConnection:
+      ZIO.attemptBlocking:
+        repo.findAllById(ids)
