@@ -20,6 +20,17 @@ object QuerySpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
           .map(users => assert(users.size)(equalTo(5)))
 
       },
+      test("Sharing a connection") {
+        withConnection:
+          sql"SELECT * FROM users"
+            .zQuery[User]
+            .map(users => assert(users.size)(equalTo(5)))
+            *>
+              sql"SELECT * FROM users"
+                .zQuery[User]
+                .map(users => assert(users.size)(equalTo(5)))
+
+      },
       test("Streaming a table") {
         val program = for {
           _ <- ZIO.logDebug("Starting stream")

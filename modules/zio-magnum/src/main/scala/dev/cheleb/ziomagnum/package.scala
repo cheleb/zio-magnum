@@ -35,14 +35,18 @@ private val currentConnection: FiberRef[Option[Connection]] =
  * connection using the DataSource, put it in the fiberRef, and remove it when done.
  */
 private def withConnection[R <: DataSource, A](
-    op: Connection => RIO[R, A]
+    op: Connection ?=> RIO[R, A]
 ): RIO[R, A] =
   currentConnection.get.flatMap {
-    case Some(connection) => op(connection)
+    case Some(connection) => op(using connection)
     case None =>
-      ZIO.scoped(fiberRefConnection(false).flatMap(db => op(db)))
+      ZIO.scoped(
+        fiberRefConnection(false).flatMap(connection => op(using connection))
+      )
   }
 
+/** Provides a database connection for the duration of the operation.
+  */
 private def withDbConnection[R <: DataSource, A](
     op: DbCon ?=> RIO[R, A]
 ): RIO[R, A] =
@@ -56,6 +60,14 @@ private def withDbConnection[R <: DataSource, A](
       )
   }
 
+/** Provides a database connection for the duration of the operation. This is
+  * similar to `withDbConnection`, but it uses a `Scope` to ensure that the
+  * connection is closed when the operation is done. This is useful for
+  * operations that need to be run in a `ZIO.scoped` block, such as streaming
+  * queries.
+  * @param op
+  * @return
+  */
 private def withScopedConnection[R <: DataSource & Scope, A](
     op: Connection ?=> RIO[R, A]
 ): ZIO[R, Throwable, A] =
@@ -65,6 +77,12 @@ private def withScopedConnection[R <: DataSource & Scope, A](
       fiberRefConnection(false).flatMap(db => op(using db))
   }
 
+/** Prepares a statement for the given `Frag` using the provided connection.
+  *
+  * @param connection
+  * @param frag
+  * @return
+  */
 private def prepareStatement(
     connection: Connection,
     frag: Frag
@@ -93,7 +111,10 @@ private def fiberRefConnection(
   for {
     dataSource <- ZIO.service[DataSource]
     connection <- scopedBestEffort(
-      ZIO.attemptBlocking(dataSource.getConnection)
+      ZIO.logDebug("Creating new connection") *>
+        // Use `ZIO.attemptBlocking` to ensure that the blocking operation is run on a
+        // blocking thread pool, preventing it from blocking the ZIO runtime.
+        ZIO.attemptBlocking(dataSource.getConnection)
     )
     // Disable auto-commit since we need to be able to roll back. Once everything is done, set it
     // to whatever the previous value was.
@@ -217,7 +238,7 @@ extension [A](query: Query[A])(using reader: DbCodec[A])
     *   The database connection to use.
     * @return
     */
-  private def toZIO(connection: Connection): Task[Vector[A]] = ZIO.scoped:
+  private def toZIO(using connection: Connection): Task[Vector[A]] = ZIO.scoped:
     for
       ps <- prepareStatement(connection, query.frag)
       rs <- ZIO.fromAutoCloseable(
@@ -286,7 +307,7 @@ extension (update: Update)
     *   The database connection to use.
     * @return
     */
-  private def toZIO(connection: Connection): Task[Int] = ZIO.scoped:
+  private def toZIO(using connection: Connection): Task[Int] = ZIO.scoped:
     for
       ps <- ZIO.fromAutoCloseable(
         ZIO.attemptBlocking(
