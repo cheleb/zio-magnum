@@ -36,6 +36,6 @@ lazy val magnumZio = project
       "dev.zio" %% "zio-test" % "2.1.19" % Test,
       "dev.zio" %% "zio-test-sbt" % "2.1.19" % Test,
       "ch.qos.logback" % "logback-classic" % "1.5.18" % Test,
-      "dev.zio" %% "zio-logging-slf4j" % "2.2.4" % Test
+      "dev.zio" %% "zio-logging-slf4j" % "2.5.0" % Test
     )
   )
