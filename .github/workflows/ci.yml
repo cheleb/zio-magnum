@@ -30,4 +30,4 @@ jobs:
             restore-keys: |
               ${{ runner.os }}-sbt-
       - name: Test
-        run: sbt "magnumZio/test"
+        run: sbt "test"

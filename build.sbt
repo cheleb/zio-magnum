@@ -8,11 +8,10 @@ inThisBuild(
 
 lazy val root = project
   .in(file("."))
+  .aggregate(magnumZio)
   .settings(
-    name := "ZIO Magnum",
-    version := "0.1.0-SNAPSHOT",
-    scalaVersion := scala3Version,
-    libraryDependencies += "org.scalameta" %% "munit" % "1.1.1" % Test
+    name := "ZIO Magnum Root",
+    version := "0.1.0-SNAPSHOT"
   )
 
 val testcontainersVersion = "0.41.4"
