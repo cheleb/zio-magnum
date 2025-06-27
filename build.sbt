@@ -2,7 +2,24 @@ val scala3Version = "3.7.1"
 
 inThisBuild(
   Seq(
-    scalaVersion := scala3Version
+    scalaVersion := scala3Version,
+    pgpPublicRing := file("/tmp/public.asc"),
+    pgpSecretRing := file("/tmp/secret.asc"),
+    pgpPassphrase := sys.env.get("PGP_PASSWORD").map(_.toArray),
+    publishTo := {
+      val centralSnapshots =
+        "https://central.sonatype.com/repository/maven-snapshots/"
+      if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
+      else localStaging.value
+    },
+    versionScheme := Some("early-semver"),
+    startYear := Some(2023),
+    licenses += (
+      "Apache-2.0",
+      url(
+        "http://www.apache.org/licenses/LICENSE-2.0"
+      )
+    )
   )
 )
 
