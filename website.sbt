@@ -28,7 +28,7 @@ Compile / doc / scalacOptions ++= Seq(
   // "-default-templates",
   // "static-site-main",
   "-project-footer",
-  s"Copyright (c) 2022-$currentYear, Olivier NOUGUIER",
+  s"Copyright (c) 2025-$currentYear, Olivier NOUGUIER",
   "-social-links:github::https://github.com/cheleb/zio-magnum,twitter::https://twitter.com/oNouguier,linkedIn::https://www.linkedin.com/in/olivier-nouguier::linkedin-day.png::linkedin-night.png,bluesky::https://bsky.app/profile/onouguier.bsky.social::bluesky-day.svg::bluesky-night.jpg",
   "-Ygenerate-inkuire",
   "-skip-by-regex:facades\\..*",
