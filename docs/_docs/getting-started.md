@@ -1,9 +1,30 @@
 # Getting Started
 
+Scalfolding ZIO Magnum is straightforward. This guide will help you set up ZIO Magnum in your Scala project and provide a simple example to get you started.
+
+## From 0
+
+To get started with ZIO Magnum, you need to set up your project with the necessary dependencies and configurations.
+
+```bash
+sbt new cheleb/zio-magnum.g8
+```
+
+This command will create a new Scala project with ZIO Magnum preconfigured. You can then navigate to the project directory and start working on your application.
+
 ## Installation
 
 
 Not decided yet, but likely integrated with main stream zio support.
+
+In the meantime, you can add the following dependency to your `build.sbt`:
+
+```scala
+libraryDependencies += "com.augustnagro" %% "zio-magnum" % "0.0.1"
+```
+
+
+
 
 ## Sample
 
