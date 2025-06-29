@@ -39,7 +39,7 @@ private def withConnection[R <: DataSource, A](
 ): RIO[R, A] =
   currentConnection.get.flatMap {
     case Some(connection) => op(using connection)
-    case None =>
+    case None             =>
       ZIO.scoped(
         fiberRefConnection(false).flatMap(connection => op(using connection))
       )
@@ -52,7 +52,7 @@ private def withDbConnection[R <: DataSource, A](
 ): RIO[R, A] =
   currentConnection.get.flatMap {
     case Some(connection) => op(using DbCon(connection, SqlLogger.Default))
-    case None =>
+    case None             =>
       ZIO.scoped(
         fiberRefConnection(false).flatMap(connection =>
           op(using DbCon(connection, SqlLogger.Default))
@@ -73,7 +73,7 @@ private def withScopedConnection[R <: DataSource & Scope, A](
 ): ZIO[R, Throwable, A] =
   currentConnection.get.flatMap {
     case Some(connection) => op(using connection)
-    case None =>
+    case None             =>
       fiberRefConnection(false).flatMap(db => op(using db))
   }
 
@@ -128,7 +128,7 @@ private def fiberRefConnection(
     }
     // Once the `use` of this outer-Scoped is done, rollback the connection if needed
     _ <- ZIO.when(tx)(ZIO.addFinalizerExit {
-      case Success(_) => ZIO.blocking(ZIO.succeed(connection.commit()))
+      case Success(_)     => ZIO.blocking(ZIO.succeed(connection.commit()))
       case Failure(cause) =>
         ZIO.blocking(ZIO.succeed(connection.rollback()))
     })
@@ -156,18 +156,38 @@ private def scopedBestEffort[R, E, A <: AutoCloseable](
 /** Creates a ZLayer that provides a DataSource using HikariCP.
   *
   * @param jdbcUrl
+  *   The JDBC URL for the database.
   * @param username
+  *   The username to connect to the database.
   * @param password
+  *   The password to connect to the database.
   * @return
   */
 def dataSourceLayer(jdbcUrl: String, username: String, password: String) =
+  customDataSourceLayer(jdbcUrl, username, password)(identity)
+
+/** Creates a ZLayer that provides a DataSource using HikariCP.
+  *
+  * @param jdbcUrl
+  *   The JDBC URL for the database.
+  * @param username
+  *   The username to connect to the database.
+  * @param password
+  *   The password to connect to the database.
+  * @param customize
+  *   function to customize the HikariConfig
+  * @return
+  */
+def customDataSourceLayer(jdbcUrl: String, username: String, password: String)(
+    customize: HikariConfig => HikariConfig
+) =
   ZLayer(ZIO.fromAutoCloseable {
     ZIO.attemptBlockingIO {
       val config = HikariConfig()
       config.setJdbcUrl(jdbcUrl)
       config.setUsername(username)
       config.setPassword(password)
-      HikariDataSource(config)
+      HikariDataSource(customize(config))
     }
   })
 
