@@ -10,6 +10,7 @@ val Versions = new {
 
 inThisBuild(
   Seq(
+    homepage := Some(url("https://github.com/cheleb/zio-magnum/")),
     organization := "dev.cheleb",
     scalaVersion := scala3Version,
     pgpPublicRing := file("/tmp/public.asc"),
