@@ -10,6 +10,7 @@ val Versions = new {
 
 inThisBuild(
   Seq(
+    organization := "dev.cheleb",
     scalaVersion := scala3Version,
     pgpPublicRing := file("/tmp/public.asc"),
     pgpSecretRing := file("/tmp/secret.asc"),
@@ -38,10 +39,14 @@ lazy val root = project
     name := "ZIO Magnum Root",
     version := "0.1.0-SNAPSHOT"
   )
+  .settings(
+    publish / skip := true // Skip publishing for the root project
+  )
 
 lazy val magnumZio = project
   .in(file("modules/zio-magnum"))
   .settings(
+    name := "zio-magnum",
     Test / fork := true,
     libraryDependencies ++= Seq(
       "com.augustnagro" %% "magnum" % Versions.magnum,
