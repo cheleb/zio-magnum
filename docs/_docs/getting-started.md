@@ -19,12 +19,9 @@ Not decided yet, but likely integrated with main stream zio support.
 
 In the meantime, you can add the following dependency to your `build.sbt`:
 
-```scala
-libraryDependencies += "com.augustnagro" %% "zio-magnum" % "0.0.1"
+```scala sc:nocompile
+libraryDependencies += "com.augustnagro" %% "zio-magnum" % {{ projectVersion }}"
 ```
-
-
-
 
 ## Sample
 
