@@ -1,5 +1,13 @@
 val scala3Version = "3.7.1"
 
+val Versions = new {
+  val zio = "2.1.19"
+  val testcontainers = "0.43.0"
+  val munit = "1.1.1"
+  val postgresDriver = "42.7.7"
+  val magnum = "2.0.0-M2"
+}
+
 inThisBuild(
   Seq(
     scalaVersion := scala3Version,
@@ -31,26 +39,21 @@ lazy val root = project
     version := "0.1.0-SNAPSHOT"
   )
 
-val testcontainersVersion = "0.43.0"
-val munitVersion = "1.1.1"
-val postgresDriverVersion = "42.7.7"
-val magnumVersion = "2.0.0-M2"
-
 lazy val magnumZio = project
   .in(file("modules/zio-magnum"))
   .settings(
     Test / fork := true,
     libraryDependencies ++= Seq(
-      "com.augustnagro" %% "magnum" % magnumVersion,
-      "dev.zio" %% "zio" % "2.1.19",
-      "dev.zio" %% "zio-streams" % "2.1.19",
+      "com.augustnagro" %% "magnum" % Versions.magnum,
+      "dev.zio" %% "zio" % Versions.zio,
+      "dev.zio" %% "zio-streams" % Versions.zio,
       "com.zaxxer" % "HikariCP" % "6.3.0",
-      "org.scalameta" %% "munit" % munitVersion % Test,
-      "com.dimafeng" %% "testcontainers-scala-munit" % testcontainersVersion % Test,
-      "com.dimafeng" %% "testcontainers-scala-postgresql" % testcontainersVersion % Test,
-      "org.postgresql" % "postgresql" % postgresDriverVersion % Test,
-      "dev.zio" %% "zio-test" % "2.1.19" % Test,
-      "dev.zio" %% "zio-test-sbt" % "2.1.19" % Test,
+      "com.dimafeng" %% "testcontainers-scala-munit" % Versions.testcontainers % Test,
+      "com.dimafeng" %% "testcontainers-scala-postgresql" % Versions.testcontainers % Test,
+      "org.postgresql" % "postgresql" % Versions.postgresDriver % Test,
+      "org.scalameta" %% "munit" % Versions.munit % Test,
+      "dev.zio" %% "zio-test" % Versions.zio % Test,
+      "dev.zio" %% "zio-test-sbt" % Versions.zio % Test,
       "ch.qos.logback" % "logback-classic" % "1.5.18" % Test,
       "dev.zio" %% "zio-logging-slf4j" % "2.5.0" % Test
     )
