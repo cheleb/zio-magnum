@@ -36,8 +36,7 @@ lazy val root = project
   .in(file("."))
   .aggregate(magnumZio)
   .settings(
-    name := "ZIO Magnum Root",
-    version := "0.1.0-SNAPSHOT"
+    name := "ZIO Magnum Root"
   )
   .settings(
     publish / skip := true // Skip publishing for the root project
