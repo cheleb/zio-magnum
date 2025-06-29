@@ -22,7 +22,21 @@ inThisBuild(
       else localStaging.value
     },
     versionScheme := Some("early-semver"),
-    startYear := Some(2023),
+    scmInfo := Some(
+      ScmInfo(
+        url("https://github.com/cheleb/zio-magnum/"),
+        "scm:git:git@github.com:cheleb/zio-magnum.git"
+      )
+    ),
+    developers := List(
+      Developer(
+        "cheleb",
+        "Olivier NOUGUIER",
+        "olivier.nouguier@gmail.com",
+        url("https://github.com/cheleb")
+      )
+    ),
+    startYear := Some(2025),
     licenses += (
       "Apache-2.0",
       url(
