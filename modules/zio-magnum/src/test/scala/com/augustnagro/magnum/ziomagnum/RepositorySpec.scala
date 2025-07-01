@@ -6,10 +6,16 @@ import javax.sql.DataSource
 
 import org.postgresql.ds.PGSimpleDataSource
 import org.testcontainers.containers.PostgreSQLContainer
+import com.augustnagro.magnum.SqlLogger
+import scala.concurrent.duration.FiniteDuration
 
 /** A trait that provides a PostgreSQL container for integration tests.
   */
 trait RepositorySpec(init: String) {
+
+  given SqlLogger =
+    SqlLogger.logSlowQueries(1.nanoseconds)
+
   private def postgres(): PostgreSQLContainer[Nothing] =
     val container: PostgreSQLContainer[Nothing] =
       PostgreSQLContainer("postgres")

@@ -13,6 +13,8 @@ object ZIOMagnumDemo extends zio.ZIOAppDefault:
 
   val repo = Repo[User, User, Int]
 
+  given SqlLogger = SqlLogger.Default
+
   private val program: RIO[DataSource, Unit] = repo.zInsert(User(0, "Alice"))
 
   override def run = program
