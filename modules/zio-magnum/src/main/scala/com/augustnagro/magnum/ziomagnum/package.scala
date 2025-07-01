@@ -13,6 +13,7 @@ import java.sql.*
 import zio.Exit.Success
 import zio.Exit.Failure
 import scala.annotation.targetName
+import scala.concurrent.duration.FiniteDuration
 
 /** ZIO Magnum is a ZIO-based library for working with SQL databases in a
   * functional way.
@@ -49,13 +50,13 @@ private def withConnection[R <: DataSource, A](
   */
 private def withDbConnection[R <: DataSource, A](
     op: DbCon ?=> RIO[R, A]
-): RIO[R, A] =
+)(using sqlLogger: SqlLogger): RIO[R, A] =
   currentConnection.get.flatMap {
-    case Some(connection) => op(using DbCon(connection, SqlLogger.Default))
+    case Some(connection) => op(using DbCon(connection, sqlLogger))
     case None             =>
       ZIO.scoped(
         fiberRefConnection(false).flatMap(connection =>
-          op(using DbCon(connection, SqlLogger.Default))
+          op(using DbCon(connection, sqlLogger))
         )
       )
   }
@@ -372,7 +373,7 @@ extension (frag: Frag)
 
 /** Provides a ZIO-based query interface for the given `ImmutableRepo`.
   */
-extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
+extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])(using SqlLogger)
 
   /** Counts the number of rows in the table.
     *
@@ -440,7 +441,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])
 
 /** Provides a ZIO-based query interface for the given `Repo`.
   */
-extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
+extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])(using SqlLogger)
 
   /** Counts the number of rows in the table.
     *
@@ -568,3 +569,11 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])
     withDbConnection:
       ZIO.attemptBlocking:
         repo.updateAll(set)
+
+/** Converts a `Duration` to a `FiniteDuration`.
+  *
+  * Magnum uses `FiniteDuration` for logging long queries.
+  */
+given Conversion[Duration, FiniteDuration] with
+  def apply(d: Duration): FiniteDuration =
+    d.asFiniteDuration
