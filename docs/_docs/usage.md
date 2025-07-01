@@ -1,6 +1,17 @@
 # Usage
 
+## SqlLogger
 
+You need to provide an instance of `SqlLogger` to log SQL queries. You can use the default logger or create a custom one.
+
+```scala sc:nocompile
+import com.augustnagro.magnum.SqlLogger
+
+given SqlLogger = SqlLogger.Default
+
+// or with custom settings
+given SqlLogger = SqlLogger.logSlowQueries(1.second)
+```
 
 ```scala sc:nocompile
 package demo
@@ -11,6 +22,8 @@ import com.augustnagro.magnum.*
 import com.augustnagro.magnum.ziomagnum.*
 
 object ZIOMagnumDemo extends zio.ZIOAppDefault:
+
+  given SqlLogger = SqlLogger.logSlowQueries(1.second)
 
   @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
   case class User(@Id id: Int, name: String) derives DbCodec
