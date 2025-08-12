@@ -8,11 +8,13 @@ import org.postgresql.ds.PGSimpleDataSource
 import org.testcontainers.containers.PostgreSQLContainer
 import com.augustnagro.magnum.SqlLogger
 import scala.concurrent.duration.FiniteDuration
-import javax.swing.plaf.SliderUI
+import zio.logging.backend.SLF4J
 
 /** A trait that provides a PostgreSQL container for integration tests.
   */
 trait RepositorySpec(init: String) {
+
+  val slf4jLogger: ULayer[Unit] = Runtime.removeDefaultLoggers >>> SLF4J.slf4j
 
   given SqlLogger =
     Slf4jMagnumLogger.logSlowQueries(1.nanoseconds)
