@@ -6,7 +6,7 @@ import com.augustnagro.magnum.*
 import com.augustnagro.magnum.ziomagnum.*
 import javax.sql.DataSource
 
-object ZIOMagnumDemo extends zio.ZIOAppDefault:
+object ZIOMagnumDemo extends ZIOAppDefault:
 
   @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
   case class User(@Id id: Int, name: String) derives DbCodec

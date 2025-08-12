@@ -4,13 +4,8 @@ import zio.*
 import zio.test.Assertion.*
 import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
-import javax.sql.DataSource
-import zio.logging.backend.SLF4J
-import zio.logging.LogFormat
 
 object QuerySpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
-
-  val slf4jLogger: ULayer[Unit] = Runtime.removeDefaultLoggers >>> SLF4J.slf4j
 
   override def spec: ZSpec[TestEnvironment & Scope, Any] =
     suite("ZIO Magnum")(

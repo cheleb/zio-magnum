@@ -35,7 +35,10 @@ import zio.*
 import com.augustnagro.magnum.*
 import com.augustnagro.magnum.ziomagnum.*
 
-object ZIOMagnumDemo extends zio.ZIOAppDefault:
+object ZIOMagnumDemo extends ZIOAppDefault:
+
+  // Provide a SQL logger
+  given SqlLogger = Slf4jMagnumLogger.Default
 
   @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
   case class User(@Id id: Int, name: String) derives DbCodec
