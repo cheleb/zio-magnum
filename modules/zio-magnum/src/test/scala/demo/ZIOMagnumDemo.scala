@@ -13,7 +13,7 @@ object ZIOMagnumDemo extends zio.ZIOAppDefault:
 
   val repo = Repo[User, User, Int]
 
-  given SqlLogger = SqlLogger.Default
+  given SqlLogger = Slf4jMagnumLogger.Default
 
   private val program: RIO[DataSource, Unit] = repo.zInsert(User(0, "Alice"))
 
