@@ -17,7 +17,6 @@ inThisBuild(
       "-deprecation",
       "-feature",
       "-unchecked",
-      "-Xlint",
       "-Xfatal-warnings",
       "-Wunused:all",
       "-Wunused:imports"
