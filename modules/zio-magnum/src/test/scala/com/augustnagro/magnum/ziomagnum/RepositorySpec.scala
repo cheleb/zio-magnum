@@ -7,8 +7,9 @@ import javax.sql.DataSource
 import org.postgresql.ds.PGSimpleDataSource
 import org.testcontainers.containers.PostgreSQLContainer
 import com.augustnagro.magnum.SqlLogger
-import scala.concurrent.duration.FiniteDuration
+
 import zio.logging.backend.SLF4J
+import scala.language.implicitConversions
 
 /** A trait that provides a PostgreSQL container for integration tests.
   */

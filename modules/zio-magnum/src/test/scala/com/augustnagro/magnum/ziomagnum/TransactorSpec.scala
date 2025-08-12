@@ -17,7 +17,7 @@ object TransactorSpec
       test("Transactor commits a transaction") {
         val program =
           for
-            tx <- transaction(
+            _ <- transaction(
               sql"INSERT INTO users (name) VALUES ('Test User')".zUpdate
             )
             count <- sql"SELECT COUNT(*) FROM users".zQuery[Int]
@@ -30,7 +30,7 @@ object TransactorSpec
       test("Transactor commits a transaction with repo") {
         val program =
           for
-            tx <- transaction(
+            _ <- transaction(
               userRepo.zInsert(User(0, "Test User"))
             )
             count <- sql"SELECT COUNT(*) FROM users".zQuery[Int]
@@ -43,7 +43,7 @@ object TransactorSpec
       test("Transactor rolls back a transaction") {
         val program =
           for
-            tx <- transaction(
+            _ <- transaction(
               sql"INSERT INTO users (name) VALUES ('Test User')".zUpdate
                 *>
                   sql"SELECT booommmmm FROM users".zQuery[Int].sandbox.ignore
@@ -58,7 +58,7 @@ object TransactorSpec
       test("Transactor rolls back a transaction with repo") {
         val program: RIO[DataSource, Vector[Int]] =
           for
-            tx <- transaction(
+            _ <- transaction(
               userRepo.zInsert(User(0, "Test User"))
                 *>
                   sql"SELECT booommmmm FROM users".zQuery[Int].sandbox.ignore

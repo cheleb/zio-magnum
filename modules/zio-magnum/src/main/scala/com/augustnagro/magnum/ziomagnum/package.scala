@@ -6,13 +6,9 @@ import com.augustnagro.magnum.*
 import javax.sql.*
 
 import zio.stream.ZStream
-import scala.util.Using
-import scala.util.Try
-import java.io.IOException
 import java.sql.*
 import zio.Exit.Success
 import zio.Exit.Failure
-import scala.annotation.targetName
 import scala.concurrent.duration.FiniteDuration
 
 /** ZIO Magnum is a ZIO-based library for working with SQL databases in a
@@ -148,7 +144,9 @@ private def scopedBestEffort[R, E, A <: AutoCloseable](
       .attemptBlocking(resource.close())
       .tapError(e =>
         ZIO
-          .attempt(ZIO.logError(s"close() of resource failed"))
+          .attempt(
+            ZIO.logError(s"close() of resource failed: ${e.getMessage()}")
+          )
           .ignore
       )
       .ignore

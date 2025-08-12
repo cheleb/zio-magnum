@@ -1,7 +1,7 @@
 package com.augustnagro.magnum.ziomagnum
 
 import zio.*
-import zio.test.Assertion.*
+
 import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
 

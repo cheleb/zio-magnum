@@ -13,6 +13,15 @@ inThisBuild(
     homepage := Some(url("https://github.com/cheleb/zio-magnum/")),
     organization := "dev.cheleb",
     scalaVersion := scala3Version,
+    scalacOptions := Seq(
+      "-deprecation",
+      "-feature",
+      "-unchecked",
+      "-Xlint",
+      "-Xfatal-warnings",
+      "-Wunused:all",
+      "-Wunused:imports"
+    ),
     pgpPublicRing := file("/tmp/public.asc"),
     pgpSecretRing := file("/tmp/secret.asc"),
     pgpPassphrase := sys.env.get("PGP_PASSWORD").map(_.toArray),
