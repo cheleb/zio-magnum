@@ -14,21 +14,11 @@ See [ZIO Magnum documentation](https://cheleb.github.io/zio-magnum/docs/index.ht
 
 See the [Magnum documentation](https://augustnagro.github.io/magnum/) for more information about Magnum.
 
+For the very impatient, you can quickly generate a new ZIO Magnum project using the following command:
 
-### Usage
-
-This is a normal sbt project. You can compile code with `sbt compile`, run it with `sbt run`, and `sbt console` will start a Scala 3 REPL.
-
-
-### No real code yet
-
-This project is currently a work in progress. The code is not yet functional, and the integration with Magnum is still being developed.
-
-
-
-### License
-This project is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). See the [LICENSE](LICENSE) file for more details.
-### Contributing
+```bash
+sbt new cheleb/zio-magnum.g8
+```
 
 Contributions are welcome! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request.
 
