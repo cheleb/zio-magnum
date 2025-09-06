@@ -1,7 +1,7 @@
 val scala3Version = "3.7.2"
 
 val Versions = new {
-  val zio = "2.1.19"
+  val zio = "2.1.21"
   val testcontainers = "0.43.0"
   val munit = "1.1.1"
   val postgresDriver = "42.7.7"
