@@ -125,9 +125,28 @@ private def fiberRefConnection(
     }
     // Once the `use` of this outer-Scoped is done, rollback the connection if needed
     _ <- ZIO.when(tx)(ZIO.addFinalizerExit {
-      case Success(_)     => ZIO.blocking(ZIO.succeed(connection.commit()))
+      case Success(_) =>
+        ZIO
+          .attemptBlocking(connection.commit())
+          .onDoneCause(
+            th =>
+              ZIO.logWarningCause(
+                s"Transaction commit failed",
+                th
+              ),
+            _ => ZIO.logDebug("Transaction committed successfully")
+          )
       case Failure(cause) =>
-        ZIO.blocking(ZIO.succeed(connection.rollback()))
+        ZIO
+          .attemptBlocking(connection.rollback())
+          .onDoneCause(
+            th =>
+              ZIO.logWarningCause(
+                s"Transaction rolled back due to failure: ${cause.prettyPrint}",
+                th
+              ),
+            _ => ZIO.logDebug("Transaction committed successfully")
+          )
     })
   } yield connection
 
@@ -214,6 +233,7 @@ def transaction[R <: DataSource, A](
       ZIO.scoped:
         // Get the current value of auto-commit
         for
+          _ <- ZIO.logDebug("Disabling auto-commit for transaction")
           prevAutoCommit <- ZIO.attemptBlocking(connection.getAutoCommit)
           // Disable auto-commit since we need to be able to roll back. Once everything is done, set it
           // to whatever the previous value was.
@@ -227,12 +247,18 @@ def transaction[R <: DataSource, A](
                   *> ZIO
                     .attemptBlocking(connection.setAutoCommit(prevAutoCommit))
                     .orDie
+                  *> ZIO.logDebug(
+                    s"Transaction committed successfully"
+                  )
               case (_, Failure(cause)) =>
                 ZIO.blocking(ZIO.succeed(connection.rollback()))
                   *>
                     ZIO
                       .attemptBlocking(connection.setAutoCommit(prevAutoCommit))
                       .orDie
+                    *> ZIO.logWarning(
+                      s"Transaction rolled back due to failure: ${cause.prettyPrint}"
+                    )
             }
           )
 
@@ -260,9 +286,13 @@ extension [A](query: Query[A])(using reader: DbCodec[A])
   private def toZIO(using connection: Connection): Task[Vector[A]] = ZIO.scoped:
     for
       ps <- prepareStatement(connection, query.frag)
-      rs <- ZIO.fromAutoCloseable(
-        ZIO.attemptBlocking(ps.executeQuery())
-      )
+      rs <- ZIO
+        .fromAutoCloseable(
+          ZIO.attemptBlocking(ps.executeQuery())
+        )
+        .tapError(e =>
+          ZIO.logError(s"Failed to execute query: ${e.getMessage()}")
+        )
     yield reader.read(rs)
 
   /** Runs the query and returns a vector of results.

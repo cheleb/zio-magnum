@@ -43,11 +43,13 @@ object TransactorSpec
       test("Transactor rolls back a transaction") {
         val program =
           for
+            _ <- ZIO.logDebug("Starting transaction")
             _ <- transaction(
               sql"INSERT INTO users (name) VALUES ('Test User')".zUpdate
                 *>
-                  sql"SELECT booommmmm FROM users".zQuery[Int].sandbox.ignore
-            )
+                  sql"SELECT booommmmm FROM users".zQuery[Int]
+            ).ignore
+            _ <- ZIO.logDebug("Transaction completed")
             count <- sql"SELECT COUNT(*) FROM users".zQuery[Int]
           yield count
 
@@ -61,8 +63,9 @@ object TransactorSpec
             _ <- transaction(
               userRepo.zInsert(User(0, "Test User"))
                 *>
-                  sql"SELECT booommmmm FROM users".zQuery[Int].sandbox.ignore
-            )
+                  sql"SELECT booommmmm FROM users"
+                    .zQuery[Int]
+            ).ignore
             count <- sql"SELECT COUNT(*) FROM users".zQuery[Int]
           yield count
 
