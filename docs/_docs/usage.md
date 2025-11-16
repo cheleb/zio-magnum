@@ -71,9 +71,9 @@ val program: RIO[DataSource, Vector[Int]] =
             tx <- transaction(
               userRepo.zInsert(User(0, "Test User"))
                 *>
-                  sql"SELECT booommmmm FROM users".zQuery[Int].sandbox.ignore
-            )
-            count <- sql"SELECT COUNT(*) FROM users".zQuery[Int]
+                  sql"SELECT booommmmm FROM users".zQuery[Int]   // This will fail
+            ).ignore                                             // Ignore the error to continue
+            count <- sql"SELECT COUNT(*) FROM users".zQuery[Int] // Get the unchanged count after the transaction
           yield count
 ```
 
