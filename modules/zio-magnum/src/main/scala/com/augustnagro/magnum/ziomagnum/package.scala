@@ -134,7 +134,10 @@ private def fiberRefConnection(
                 s"Transaction commit failed",
                 th
               ),
-            _ => ZIO.logDebug("Transaction committed successfully")
+            _ =>
+              ZIO.logDebug(
+                "Transaction committed successfully"
+              )
           )
       case Failure(cause) =>
         ZIO
@@ -145,7 +148,10 @@ private def fiberRefConnection(
                 s"Transaction rolled back due to failure: ${cause.prettyPrint}",
                 th
               ),
-            _ => ZIO.logDebug("Transaction committed successfully")
+            _ =>
+              ZIO.logDebug(
+                s"Transaction rolled back successfully after failure: ${cause.prettyPrint}"
+              )
           )
     })
   } yield connection
@@ -247,9 +253,7 @@ def transaction[R <: DataSource, A](
                   *> ZIO
                     .attemptBlocking(connection.setAutoCommit(prevAutoCommit))
                     .orDie
-                  *> ZIO.logDebug(
-                    s"Transaction committed successfully"
-                  )
+                  *> ZIO.logDebug("Transaction committed successfully.")
               case (_, Failure(cause)) =>
                 ZIO.blocking(ZIO.succeed(connection.rollback()))
                   *>

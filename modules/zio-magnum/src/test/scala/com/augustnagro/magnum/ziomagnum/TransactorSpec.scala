@@ -5,6 +5,7 @@ import zio.test.Assertion.*
 import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
 import javax.sql.DataSource
+import scala.util.control.NoStackTrace
 
 object TransactorSpec
     extends ZIOSpecDefault
@@ -66,6 +67,24 @@ object TransactorSpec
                   sql"SELECT booommmmm FROM users"
                     .zQuery[Int]
             ).ignore
+            count <- sql"SELECT COUNT(*) FROM users".zQuery[Int]
+          yield count
+
+        program
+          .map(count => assert(count(0))(equalTo(5)))
+
+      },
+      test("Transactor rolls back a transaction if an IO fails outside JDBC") {
+        val program: RIO[DataSource, Vector[Int]] =
+          for
+            _ <- transaction(
+              userRepo.zInsert(User(0, "Test User"))
+                *>
+                  sql"SELECT count(*) FROM users"
+                    .zQuery[Int]
+                  *>
+                  ZIO.die(new Exception("Boom") with NoStackTrace)
+            ).sandbox.ignore
             count <- sql"SELECT COUNT(*) FROM users".zQuery[Int]
           yield count
 
