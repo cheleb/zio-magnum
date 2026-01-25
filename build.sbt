@@ -1,10 +1,10 @@
-val scala3Version = "3.7.4"
+val scala3Version = "3.8.1"
 
 val Versions = new {
   val zio = "2.1.24"
   val testcontainers = "0.43.0"
   val munit = "1.1.1"
-  val postgresDriver = "42.7.8"
+  val postgresDriver = "42.7.9"
   val magnum = "2.0.0-M2"
 }
 
@@ -17,7 +17,7 @@ inThisBuild(
       "-deprecation",
       "-feature",
       "-unchecked",
-      "-Xfatal-warnings",
+      "-Werror",
       "-Wunused:all",
       "-Wunused:imports"
     ),
@@ -81,7 +81,7 @@ lazy val magnumZio = project
       "org.scalameta" %% "munit" % Versions.munit % Test,
       "dev.zio" %% "zio-test" % Versions.zio % Test,
       "dev.zio" %% "zio-test-sbt" % Versions.zio % Test,
-      "ch.qos.logback" % "logback-classic" % "1.5.23" % Test,
+      "ch.qos.logback" % "logback-classic" % "1.5.26" % Test,
       "dev.zio" %% "zio-logging-slf4j" % "2.5.2" % Test
     )
   )

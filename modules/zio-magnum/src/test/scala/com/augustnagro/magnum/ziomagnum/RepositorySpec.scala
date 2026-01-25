@@ -6,7 +6,6 @@ import javax.sql.DataSource
 
 import org.postgresql.ds.PGSimpleDataSource
 import org.testcontainers.containers.PostgreSQLContainer
-import com.augustnagro.magnum.SqlLogger
 
 import zio.logging.backend.SLF4J
 import scala.language.implicitConversions
@@ -16,9 +15,6 @@ import scala.language.implicitConversions
 trait RepositorySpec(init: String) {
 
   val slf4jLogger: ULayer[Unit] = Runtime.removeDefaultLoggers >>> SLF4J.slf4j
-
-  given SqlLogger =
-    Slf4jMagnumLogger.logSlowQueries(1.nanoseconds)
 
   private def postgres(): PostgreSQLContainer[Nothing] =
     val container: PostgreSQLContainer[Nothing] =

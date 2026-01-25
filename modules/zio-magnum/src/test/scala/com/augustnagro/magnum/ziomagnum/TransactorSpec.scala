@@ -6,16 +6,21 @@ import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
 import javax.sql.DataSource
 import scala.util.control.NoStackTrace
+import scala.language.implicitConversions
 
 object TransactorSpec
     extends ZIOSpecDefault
     with RepositorySpec("sql/users.sql") {
+
+  given SqlLogger =
+    Slf4jMagnumLogger.logSlowQueries(1.nanoseconds)
 
   val userRepo = Repo[User, User, Int]
 
   override def spec: ZSpec[TestEnvironment & Scope, Any] =
     suite("ZIO Magnum")(
       test("Transactor commits a transaction") {
+
         val program =
           for
             _ <- transaction(
@@ -95,6 +100,6 @@ object TransactorSpec
     ).provide(
       Scope.default >>> testDataSouurceLayer,
       slf4jLogger
-    )
+    ) @@ TestAspect.withLiveClock
 
 }

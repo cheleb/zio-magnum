@@ -4,12 +4,17 @@ import zio.*
 import zio.test.Assertion.*
 import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
+import scala.language.implicitConversions
 
 object QuerySpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
 
   override def spec: ZSpec[TestEnvironment & Scope, Any] =
     suite("ZIO Magnum")(
       test("Queying a table") {
+
+        given SqlLogger =
+          Slf4jMagnumLogger.logSlowQueries(30.milliseconds)
+
         sql"SELECT * FROM users"
           .zQuery[User]
           .map(users => assert(users.size)(equalTo(5)))
@@ -43,6 +48,6 @@ object QuerySpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
       testDataSouurceLayer,
       Scope.default,
       slf4jLogger
-    )
+    ) @@ TestAspect.withLiveClock
 
 }
