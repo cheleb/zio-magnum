@@ -10,6 +10,8 @@ import java.sql.*
 import zio.Exit.Success
 import zio.Exit.Failure
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.MILLISECONDS
+import scala.concurrent.duration.SECONDS
 import scala.language.implicitConversions
 
 /** ZIO Magnum is a ZIO-based library for working with SQL databases in a
@@ -294,20 +296,21 @@ extension [A](query: Query[A])(using reader: DbCodec[A], sqlLogger: SqlLogger)
   private def toZIO(using connection: Connection): Task[Vector[A]] = ZIO.scoped:
     (for
       ps <- prepareStatement(connection, query.frag)
-      rs <- ZIO
+      (execTime, rs) <- ZIO
         .fromAutoCloseable(
           ZIO.attemptBlocking(ps.executeQuery())
         )
+        .timed
         .tapError(e =>
           ZIO.logError(s"Failed to execute query: ${e.getMessage()}")
         )
-    yield reader.read(rs)).timed
+    yield (execTime, reader.read(rs)))
       .map((execTime, result) =>
         sqlLogger.log(
           SqlSuccessEvent(
             query.frag.sqlString,
             query.frag.params,
-            execTime
+            FiniteDuration(execTime.toMillis(), MILLISECONDS)
           )
         )
         result
@@ -395,7 +398,7 @@ extension (update: Update)(using sqlLogger: SqlLogger)
           SqlSuccessEvent(
             update.frag.sqlString,
             update.frag.params,
-            execTime
+            FiniteDuration(execTime.toSeconds(), SECONDS)
           )
         )
         result

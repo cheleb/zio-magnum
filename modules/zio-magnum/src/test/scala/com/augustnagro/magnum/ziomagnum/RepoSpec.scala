@@ -9,7 +9,7 @@ import scala.language.implicitConversions
 object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
 
   given SqlLogger =
-    Slf4jMagnumLogger.logSlowQueries(1.nanoseconds)
+    Slf4jMagnumLogger.logSlowQueries(1.milli)
 
   val userRepo = Repo[User, User, Int]
 

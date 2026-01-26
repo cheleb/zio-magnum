@@ -13,7 +13,7 @@ object QuerySpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
       test("Queying a table") {
 
         given SqlLogger =
-          Slf4jMagnumLogger.logSlowQueries(30.milliseconds)
+          Slf4jMagnumLogger.logSlowQueries(1.milliseconds)
 
         sql"SELECT * FROM users"
           .zQuery[User]

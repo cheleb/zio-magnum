@@ -13,7 +13,7 @@ object TransactorSpec
     with RepositorySpec("sql/users.sql") {
 
   given SqlLogger =
-    Slf4jMagnumLogger.logSlowQueries(1.nanoseconds)
+    Slf4jMagnumLogger.logSlowQueries(1.micros)
 
   val userRepo = Repo[User, User, Int]
 

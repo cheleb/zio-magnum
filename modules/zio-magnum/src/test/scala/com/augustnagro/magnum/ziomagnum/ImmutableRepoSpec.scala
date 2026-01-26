@@ -15,7 +15,7 @@ object ImmutableRepoSpec
     with RepositorySpec("sql/users.sql") {
 
   given SqlLogger =
-    Slf4jMagnumLogger.logSlowQueries(1.nanoseconds)
+    Slf4jMagnumLogger.logSlowQueries(1.milli)
 
   val userRepo = ImmutableRepo[User, Int]
 
