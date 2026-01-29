@@ -10,10 +10,17 @@ import java.sql.*
 import zio.Exit.Success
 import zio.Exit.Failure
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.MILLISECONDS
+import scala.concurrent.duration.SECONDS
+import scala.language.implicitConversions
 
 /** ZIO Magnum is a ZIO-based library for working with SQL databases in a
   * functional way.
   */
+
+/** Default SQL logger that uses SLF4J. */
+given SqlLogger =
+  Slf4jMagnumLogger.Default
 
 /** Current database connection for the fiber */
 private val currentConnection: FiberRef[Option[Connection]] =
@@ -276,7 +283,7 @@ def transaction[R <: DataSource, A](
 
 /** Provides a ZIO-based query interface for the given `Query[A]`.
   */
-extension [A](query: Query[A])(using reader: DbCodec[A])
+extension [A](query: Query[A])(using reader: DbCodec[A], sqlLogger: SqlLogger)
 
   /** An ZIO that:
     *   - prepares the statement
@@ -288,16 +295,27 @@ extension [A](query: Query[A])(using reader: DbCodec[A])
     * @return
     */
   private def toZIO(using connection: Connection): Task[Vector[A]] = ZIO.scoped:
-    for
+    (for
       ps <- prepareStatement(connection, query.frag)
-      rs <- ZIO
+      (execTime, rs) <- ZIO
         .fromAutoCloseable(
           ZIO.attemptBlocking(ps.executeQuery())
         )
+        .timed
         .tapError(e =>
           ZIO.logError(s"Failed to execute query: ${e.getMessage()}")
         )
-    yield reader.read(rs)
+    yield (execTime, reader.read(rs)))
+      .map((execTime, result) =>
+        sqlLogger.log(
+          SqlSuccessEvent(
+            query.frag.sqlString,
+            query.frag.params,
+            FiniteDuration(execTime.toMillis(), MILLISECONDS)
+          )
+        )
+        result
+      )
 
   /** Runs the query and returns a vector of results.
     *
@@ -315,7 +333,9 @@ extension [A](query: Query[A])(using reader: DbCodec[A])
     * @param fetchSize
     *   the number of rows to fetch at a time from the database.
     */
-  private def zstream(fetchSize: Int): ZStream[DataSource, Throwable, A] =
+  private def zstream(
+      fetchSize: Int
+  ): ZStream[DataSource, Throwable, A] =
     ZStream.unwrapScoped(
       withScopedConnection:
         ziterator(fetchSize)
@@ -331,7 +351,9 @@ extension [A](query: Query[A])(using reader: DbCodec[A])
     */
   private def ziterator(
       fetchSize: Int
-  )(using connection: Connection): RIO[Scope, ResultSetIterator[A]] =
+  )(using
+      connection: Connection
+  ): RIO[Scope, ResultSetIterator[A]] =
     for
       ps <- prepareStatement(connection, query.frag)
 
@@ -344,12 +366,12 @@ extension [A](query: Query[A])(using reader: DbCodec[A])
       rs,
       query.frag,
       reader,
-      SqlLogger.Default
+      sqlLogger
     )
 
 /** Provides a ZIO-based update interface for the given `Update`.
   */
-extension (update: Update)
+extension (update: Update)(using sqlLogger: SqlLogger)
 
   /** An ZIO that:
     *   - prepares the statement
@@ -361,21 +383,34 @@ extension (update: Update)
     * @return
     */
   private def toZIO(using connection: Connection): Task[Int] = ZIO.scoped:
-    for
+    (for
       ps <- ZIO.fromAutoCloseable(
         ZIO.attemptBlocking(
           connection.prepareStatement(update.frag.sqlString)
         )
       )
       _ = update.frag.writer.write(ps, 1)
-    yield ps.executeUpdate()
+      _ <- ZIO.logDebug(
+        s"Executing update: ${update.frag.sqlString} with params: ${update.frag.params}"
+      )
+    yield ps.executeUpdate()).timed
+      .map((execTime, result) =>
+        sqlLogger.log(
+          SqlSuccessEvent(
+            update.frag.sqlString,
+            update.frag.params,
+            FiniteDuration(execTime.toSeconds(), SECONDS)
+          )
+        )
+        result
+      )
 
   def zrun[R <: DataSource]: RIO[R, Int] = withConnection:
     toZIO
 
 /** Provides a ZIO-based query interface for the given `Frag`.
   */
-extension (frag: Frag)
+extension (frag: Frag)(using SqlLogger)
   /** Runs the query and returns a vector of results.
     *
     * @param A

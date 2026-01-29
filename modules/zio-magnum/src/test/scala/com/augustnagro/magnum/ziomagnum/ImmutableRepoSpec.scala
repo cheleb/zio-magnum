@@ -4,6 +4,7 @@ import zio.*
 import zio.test.Assertion.*
 import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
+import scala.language.implicitConversions
 
 @SqlName("users")
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
@@ -12,6 +13,9 @@ case class User(@Id id: Int, name: String) derives DbCodec
 object ImmutableRepoSpec
     extends ZIOSpecDefault
     with RepositorySpec("sql/users.sql") {
+
+  given SqlLogger =
+    Slf4jMagnumLogger.logSlowQueries(1.milli)
 
   val userRepo = ImmutableRepo[User, Int]
 
@@ -64,6 +68,6 @@ object ImmutableRepoSpec
       testDataSouurceLayer,
       Scope.default,
       slf4jLogger
-    )
+    ) @@ TestAspect.withLiveClock
 
 }

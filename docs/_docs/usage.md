@@ -2,14 +2,16 @@
 
 ## SqlLogger
 
-You need to provide an instance of `SqlLogger` to log SQL queries. You can use the default logger or create a custom one.
+An instance of `SqlLogger` is required to log SQL queries.
+
+A default logger (`SqlLogger.Default`) is provided in the library.
+
 
 ```scala sc:nocompile
 import com.augustnagro.magnum.SqlLogger
 
-given SqlLogger = SqlLogger.Default
-
-// or with custom settings
+// You can also create a logger with custom settings
+//
 given SqlLogger = SqlLogger.logSlowQueries(1.second)
 ```
 

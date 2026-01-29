@@ -4,8 +4,12 @@ import zio.*
 
 import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
+import scala.language.implicitConversions
 
 object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
+
+  given SqlLogger =
+    Slf4jMagnumLogger.logSlowQueries(1.milli)
 
   val userRepo = Repo[User, User, Int]
 
@@ -25,6 +29,6 @@ object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
       testDataSouurceLayer,
       Scope.default,
       slf4jLogger
-    )
+    ) @@ TestAspect.withLiveClock
 
 }
