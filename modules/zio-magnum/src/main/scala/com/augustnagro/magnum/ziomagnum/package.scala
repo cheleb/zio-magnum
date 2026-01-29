@@ -18,6 +18,7 @@ import scala.language.implicitConversions
   * functional way.
   */
 
+/** Default SQL logger that uses SLF4J. */
 given SqlLogger =
   Slf4jMagnumLogger.Default
 

@@ -37,8 +37,8 @@ import com.augustnagro.magnum.ziomagnum.*
 
 object ZIOMagnumDemo extends ZIOAppDefault:
 
-  // Provide a SQL logger
-  given SqlLogger = Slf4jMagnumLogger.Default
+  // Uncomment to provide a custom SQL logger
+  // given SqlLogger = Slf4jMagnumLogger.logSlowQueries(1.milliseconds)
 
   @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
   case class User(@Id id: Int, name: String) derives DbCodec
