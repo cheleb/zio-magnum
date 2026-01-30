@@ -8,7 +8,8 @@ import scala.language.implicitConversions
 
 @SqlName("users")
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
-case class User(@Id id: Int, name: String) derives DbCodec
+case class User(@Id id: Int, name: String, photo: Option[Array[Byte]])
+    derives DbCodec
 
 object ImmutableRepoSpec
     extends ZIOSpecDefault
@@ -47,7 +48,7 @@ object ImmutableRepoSpec
       test("findById") {
         userRepo
           .zFindById(1)
-          .map(user => assert(user)(isSome(equalTo(User(1, "Alice")))))
+          .map(user => assert(user)(isSome(equalTo(User(1, "Alice", None)))))
       },
       test("findById not found") {
         userRepo

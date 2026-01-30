@@ -19,10 +19,26 @@ object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
     .limit(10)
 
   override def spec: ZSpec[TestEnvironment & Scope, Any] =
-    suite("ZIO Magnum ImmutableRepo")(
+    suite("ZIO Magnum Repo")(
       test("deleteById") {
         userRepo
           .zDeleteById(1)
+          .map(_ => assertCompletes)
+      },
+      test("Insert") {
+        userRepo
+          .zInsert(
+            User(
+              0,
+              "New User",
+              Some(
+                RepoSpec
+                  .getClass()
+                  .getResourceAsStream("/iranmaiden.png")
+                  .readAllBytes()
+              )
+            )
+          )
           .map(_ => assertCompletes)
       }
     ).provide(

@@ -1,10 +1,12 @@
 CREATE TABLE "users"(
     id serial PRIMARY KEY,
-    name text NOT NULL
+    name text NOT NULL,
+    photo bytea
 );
 
 INSERT INTO "users"(name)
-    VALUES ('Alice'),
+VALUES
+    ('Alice'),
 ('Bob'),
 ('Charlie'),
 ('Diana'),

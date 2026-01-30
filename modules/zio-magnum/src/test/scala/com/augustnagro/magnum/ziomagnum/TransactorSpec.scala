@@ -37,7 +37,7 @@ object TransactorSpec
         val program =
           for
             _ <- transaction(
-              userRepo.zInsert(User(0, "Test User"))
+              userRepo.zInsert(User(0, "Test User", None))
             )
             count <- sql"SELECT COUNT(*) FROM users".zQuery[Int]
           yield count
@@ -67,7 +67,7 @@ object TransactorSpec
         val program: RIO[DataSource, Vector[Int]] =
           for
             _ <- transaction(
-              userRepo.zInsert(User(0, "Test User"))
+              userRepo.zInsert(User(0, "Test User", None))
                 *>
                   sql"SELECT booommmmm FROM users"
                     .zQuery[Int]
@@ -83,7 +83,7 @@ object TransactorSpec
         val program: RIO[DataSource, Vector[Int]] =
           for
             _ <- transaction(
-              userRepo.zInsert(User(0, "Test User"))
+              userRepo.zInsert(User(0, "Test User", None))
                 *>
                   sql"SELECT count(*) FROM users"
                     .zQuery[Int]
