@@ -3,7 +3,7 @@ val scala3Version = "3.8.1"
 val Versions = new {
   val zio = "2.1.24"
   val testcontainers = "0.43.0"
-  val munit = "1.1.1"
+  val munit = "1.2.2"
   val postgresDriver = "42.7.9"
   val magnum = "2.0.0-M2"
 }
