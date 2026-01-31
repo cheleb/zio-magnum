@@ -5,6 +5,7 @@ import zio.*
 import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
 import scala.language.implicitConversions
+import java.util.UUID
 
 object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
 
@@ -36,7 +37,8 @@ object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
                   .getClass()
                   .getResourceAsStream("/iranmaiden.png")
                   .readAllBytes()
-              )
+              ),
+              UUID.randomUUID()
             )
           )
           .map(_ => assertCompletes)

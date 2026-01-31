@@ -5,11 +5,16 @@ import zio.test.Assertion.*
 import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
 import scala.language.implicitConversions
+import java.util.UUID
 
 @SqlName("users")
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
-case class User(@Id id: Int, name: String, photo: Option[Array[Byte]])
-    derives DbCodec
+case class User(
+    @Id id: Int,
+    name: String,
+    photo: Option[Array[Byte]],
+    myuuid: UUID
+) derives DbCodec
 
 object ImmutableRepoSpec
     extends ZIOSpecDefault
@@ -48,7 +53,20 @@ object ImmutableRepoSpec
       test("findById") {
         userRepo
           .zFindById(1)
-          .map(user => assert(user)(isSome(equalTo(User(1, "Alice", None)))))
+          .map(user =>
+            assert(user)(
+              isSome(
+                equalTo(
+                  User(
+                    1,
+                    "Alice",
+                    None,
+                    UUID.fromString("c0ce7a15-c0c2-4a32-8462-33f82764f2f2")
+                  )
+                )
+              )
+            )
+          )
       },
       test("findById not found") {
         userRepo
