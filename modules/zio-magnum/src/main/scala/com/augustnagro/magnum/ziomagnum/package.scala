@@ -19,7 +19,7 @@ import scala.language.implicitConversions
   */
 
 /** Default SQL logger that uses SLF4J. */
-given SqlLogger =
+implicit val sqlLogger: SqlLogger =
   Slf4jMagnumLogger.Default
 
 /** Current database connection for the fiber */

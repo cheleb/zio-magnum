@@ -3,7 +3,7 @@ package demo
 import zio.*
 
 import com.augustnagro.magnum.*
-import com.augustnagro.magnum.ziomagnum.{*, given}
+import com.augustnagro.magnum.ziomagnum.*
 import javax.sql.DataSource
 import java.util.UUID
 
