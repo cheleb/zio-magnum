@@ -7,15 +7,6 @@ import com.augustnagro.magnum.*
 import scala.language.implicitConversions
 import java.util.UUID
 
-@SqlName("users")
-@Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
-case class User(
-    @Id id: Int,
-    name: String,
-    photo: Option[Array[Byte]],
-    myuuid: UUID
-) derives DbCodec
-
 object ImmutableRepoSpec
     extends ZIOSpecDefault
     with RepositorySpec("sql/users.sql") {

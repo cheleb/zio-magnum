@@ -3,6 +3,7 @@ package com.augustnagro.magnum.ziomagnum
 import zio.*
 
 import zio.test.{Spec as ZSpec, *}
+import zio.test.Assertion.*
 import com.augustnagro.magnum.*
 import scala.language.implicitConversions
 import java.util.UUID
@@ -42,6 +43,11 @@ object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
             )
           )
           .map(_ => assertCompletes)
+      },
+      test("findAll with spec") {
+        userRepo
+          .zFindAll(uspec)
+          .map(users => assert(users.size)(equalTo(1)))
       }
     ).provide(
       testDataSouurceLayer,
