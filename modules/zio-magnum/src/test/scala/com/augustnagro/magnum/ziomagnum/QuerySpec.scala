@@ -8,6 +8,9 @@ import scala.language.implicitConversions
 
 object QuerySpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
 
+  val user = TableInfo[User, User, Int].alias("u")
+  val projects = TableInfo[Project, Project, Int].alias("p")
+
   override def spec: ZSpec[TestEnvironment & Scope, Any] =
     suite("ZIO Magnum")(
       test("Queying a table") {
@@ -43,6 +46,22 @@ object QuerySpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
         program
           .map(count => assert(count)(equalTo(5)))
 
+      },
+      test("Joining two tables") {
+        val program = for
+          zs = sql"""
+       SELECT ${user.all}, ${projects.name}
+       FROM $user
+       JOIN $projects ON ${projects.id} = ${user.id}
+           """
+            .zStream[(User, String)]()
+          _ <- zs
+            .runForeach { case (user, projectName) =>
+              ZIO.logInfo(s"User: ${user.name}, Project Name: $projectName")
+            }
+        yield ()
+        program
+          .map(_ => assertCompletes)
       }
     ).provide(
       testDataSouurceLayer,

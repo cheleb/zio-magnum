@@ -7,6 +7,7 @@ import com.augustnagro.magnum.*
 import javax.sql.DataSource
 import scala.util.control.NoStackTrace
 import scala.language.implicitConversions
+import java.util.UUID
 
 object TransactorSpec
     extends ZIOSpecDefault
@@ -24,7 +25,7 @@ object TransactorSpec
         val program =
           for
             _ <- transaction(
-              sql"INSERT INTO users (name) VALUES ('Test User')".zUpdate
+              sql"INSERT INTO users (name, myuuid) VALUES ('Test User', ${UUID.randomUUID()})".zUpdate
             )
             count <- sql"SELECT COUNT(*) FROM users".zQuery[Int]
           yield count
@@ -37,7 +38,7 @@ object TransactorSpec
         val program =
           for
             _ <- transaction(
-              userRepo.zInsert(User(0, "Test User"))
+              userRepo.zInsert(User(0, "Test User", None, UUID.randomUUID()))
             )
             count <- sql"SELECT COUNT(*) FROM users".zQuery[Int]
           yield count
@@ -51,7 +52,7 @@ object TransactorSpec
           for
             _ <- ZIO.logDebug("Starting transaction")
             _ <- transaction(
-              sql"INSERT INTO users (name) VALUES ('Test User')".zUpdate
+              sql"INSERT INTO users (name, myuuid) VALUES ('Test User', ${UUID.randomUUID()})".zUpdate
                 *>
                   sql"SELECT booommmmm FROM users".zQuery[Int]
             ).ignore
@@ -67,7 +68,7 @@ object TransactorSpec
         val program: RIO[DataSource, Vector[Int]] =
           for
             _ <- transaction(
-              userRepo.zInsert(User(0, "Test User"))
+              userRepo.zInsert(User(0, "Test User", None, UUID.randomUUID()))
                 *>
                   sql"SELECT booommmmm FROM users"
                     .zQuery[Int]
@@ -83,7 +84,7 @@ object TransactorSpec
         val program: RIO[DataSource, Vector[Int]] =
           for
             _ <- transaction(
-              userRepo.zInsert(User(0, "Test User"))
+              userRepo.zInsert(User(0, "Test User", None, UUID.randomUUID()))
                 *>
                   sql"SELECT count(*) FROM users"
                     .zQuery[Int]

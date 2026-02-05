@@ -3,8 +3,10 @@ package com.augustnagro.magnum.ziomagnum
 import zio.*
 
 import zio.test.{Spec as ZSpec, *}
+import zio.test.Assertion.*
 import com.augustnagro.magnum.*
 import scala.language.implicitConversions
+import java.util.UUID
 
 object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
 
@@ -19,11 +21,33 @@ object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
     .limit(10)
 
   override def spec: ZSpec[TestEnvironment & Scope, Any] =
-    suite("ZIO Magnum ImmutableRepo")(
+    suite("ZIO Magnum Repo")(
       test("deleteById") {
         userRepo
           .zDeleteById(1)
           .map(_ => assertCompletes)
+      },
+      test("Insert") {
+        userRepo
+          .zInsert(
+            User(
+              0,
+              "New User",
+              Some(
+                RepoSpec
+                  .getClass()
+                  .getResourceAsStream("/iranmaiden.png")
+                  .readAllBytes()
+              ),
+              UUID.randomUUID()
+            )
+          )
+          .map(_ => assertCompletes)
+      },
+      test("findAll with spec") {
+        userRepo
+          .zFindAll(uspec)
+          .map(users => assert(users.size)(equalTo(1)))
       }
     ).provide(
       testDataSouurceLayer,
