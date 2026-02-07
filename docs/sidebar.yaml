@@ -1,6 +1,8 @@
 index: index.html
 subsection:
   - title: Getting Started
-    page: getting-started.html
+    page: getting-started.md
+  - title: Architecture
+    page: architecture.md
   - title: Usage
-    index: usage.html
+    index: usage.md

@@ -1,3 +1,5 @@
+addCommandAlias("website", "docs/mdoc; makeSite")
+
 lazy val currentYear: String =
   java.util.Calendar.getInstance().get(java.util.Calendar.YEAR).toString
 
@@ -17,7 +19,7 @@ git.remoteRepo := "git@github.com:cheleb/laminar-form-derivation.git"
 ghpagesNoJekyll := true
 Compile / doc / scalacOptions ++= Seq(
   "-siteroot",
-  "docs",
+  "zio-magnum-docs/target/mdoc",
   "-project",
   "ZIO Magnum",
   "-groups",

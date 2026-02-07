@@ -1,4 +1,4 @@
-@startuml "D"
+@startuml "zio-magnum"
 top to bottom direction
 
 package "User Application" {

@@ -1,6 +1,7 @@
 val scala3Version = "3.8.1"
 
 val Versions = new {
+  val logbackClassic = "1.5.23"
   val zio = "2.1.24"
   val testcontainers = "0.43.0"
   val munit = "1.2.2"
@@ -84,4 +85,38 @@ lazy val magnumZio = project
       "ch.qos.logback" % "logback-classic" % "1.5.28" % Test,
       "dev.zio" %% "zio-logging-slf4j" % "2.5.2" % Test
     )
+  )
+
+lazy val docs = project // new documentation project
+  .in(file("zio-magnum-docs")) // important: it must not be docs/
+  .dependsOn(magnumZio)
+  .settings(
+    publish / skip := true,
+    moduleName := "zio-magnum-docs",
+    // ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
+    //   core,
+    //   sharedJs,
+    //   sharedJvm
+    // ),
+    ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
+    cleanFiles += (ScalaUnidoc / unidoc / target).value,
+    mdocVariables := Map(
+      "VERSION" -> sys.env.getOrElse("VERSION", version.value),
+      "ORG" -> organization.value,
+      "GITHUB_MASTER" -> "https://github.com/cheleb/zio-laminar-tapir/tree/master"
+    )
+  )
+//  .disablePlugins(WartRemover)
+  .enablePlugins(
+    MdocPlugin,
+//    ScalaUnidocPlugin,
+    PlantUMLPlugin
+  )
+  .settings(
+    plantUMLSource := file("docs/_docs"),
+    Compile / plantUMLTarget := "mdoc/_assets/images",
+    Compile / plantUMLFormats := Seq(PlantUMLPlugin.Formats.SVG)
+  )
+  .settings(
+    libraryDependencies += "ch.qos.logback" % "logback-classic" % Versions.logbackClassic
   )
