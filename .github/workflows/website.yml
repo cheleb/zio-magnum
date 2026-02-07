@@ -26,35 +26,7 @@ concurrency:
 jobs:
   # Single deploy job since we're just deploying
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Fetch tags
-        run: git fetch --prune --unshallow --tags        
-      - name: Setup JVM
-        uses: actions/setup-java@v5
-        with:
-          java-version: "24"
-          distribution: "zulu"
-      - name: Install sbt
-        uses: sbt/setup-sbt@v1
-      - name: Vite build
-        run: |
-          export VERSION=`git describe --tags --abbrev=0 | sed "s/v//"`
-          echo "Documentation version: $VERSION"
-          sbt website
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          # Upload dist repository
-          path: "target/site"
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        
+    uses: WorldOfScala/actions/.github/workflows/gh-pages.yml@master
+    with:
+      script: ./scripts/gh-pages.sh
+    secrets: inherit
