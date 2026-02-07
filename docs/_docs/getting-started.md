@@ -50,7 +50,11 @@ object ZIOMagnumDemo extends ZIOAppDefault:
   val repo = Repo[User, User, Int]
 
   // Example of inserting a user into the database
-  private val program: RIO[DataSource, Unit] = repo.zInsert(User(0, "Alice"))
+  private val program: RIO[Unit] =
+     for
+       given DataSource <- ZIO.service[DataSource]
+       _ <-repo.zInsert(User(0, "Alice"))
+      yield ()
 
   override def run = program
     .provide:

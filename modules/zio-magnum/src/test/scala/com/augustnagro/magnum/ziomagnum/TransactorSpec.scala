@@ -24,6 +24,8 @@ object TransactorSpec
 
         val program =
           for
+
+            given DataSource <- ZIO.service[DataSource]
             _ <- transaction(
               sql"INSERT INTO users (name, myuuid) VALUES ('Test User', ${UUID.randomUUID()})".zUpdate
             )
@@ -37,6 +39,7 @@ object TransactorSpec
       test("Transactor commits a transaction with repo") {
         val program =
           for
+            given DataSource <- ZIO.service[DataSource]
             _ <- transaction(
               userRepo.zInsert(
                 User(0, "Test User", None, UUID.randomUUID(), None)
@@ -52,6 +55,7 @@ object TransactorSpec
       test("Transactor rolls back a transaction") {
         val program =
           for
+            given DataSource <- ZIO.service[DataSource]
             _ <- ZIO.logDebug("Starting transaction")
             _ <- transaction(
               sql"INSERT INTO users (name, myuuid) VALUES ('Test User', ${UUID.randomUUID()})".zUpdate
@@ -69,6 +73,7 @@ object TransactorSpec
       test("Transactor rolls back a transaction with repo") {
         val program: RIO[DataSource, Vector[Int]] =
           for
+            given DataSource <- ZIO.service[DataSource]
             _ <- transaction(
               userRepo.zInsert(
                 User(
@@ -93,6 +98,7 @@ object TransactorSpec
       test("Transactor rolls back a transaction if an IO fails outside JDBC") {
         val program: RIO[DataSource, Vector[Int]] =
           for
+            given DataSource <- ZIO.service[DataSource]
             _ <- transaction(
               userRepo.zInsert(
                 User(

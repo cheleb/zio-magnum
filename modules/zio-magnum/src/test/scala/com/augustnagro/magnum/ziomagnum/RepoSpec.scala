@@ -7,6 +7,7 @@ import zio.test.Assertion.*
 import com.augustnagro.magnum.*
 import scala.language.implicitConversions
 import java.util.UUID
+import javax.sql.DataSource
 
 object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
 
@@ -25,31 +26,37 @@ object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
   override def spec: ZSpec[TestEnvironment & Scope, Any] =
     suite("ZIO Magnum Repo")(
       test("deleteById") {
-        userRepo
-          .zDeleteById(1)
-          .map(_ => assertCompletes)
+        for
+          given DataSource <- ZIO.service[DataSource]
+          _ <- userRepo
+            .zDeleteById(1)
+        yield assertCompletes
       },
       test("Insert") {
-        userRepo
-          .zInsertReturning(
-            UserCreator(
-              "New User",
-              Some(
-                RepoSpec
-                  .getClass()
-                  .getResourceAsStream("/iranmaiden.png")
-                  .readAllBytes()
-              ),
-              UUID.randomUUID(),
-              None
+        for
+          given DataSource <- ZIO.service[DataSource]
+          _ <- userRepo
+            .zInsertReturning(
+              UserCreator(
+                "New User",
+                Some(
+                  RepoSpec
+                    .getClass()
+                    .getResourceAsStream("/iranmaiden.png")
+                    .readAllBytes()
+                ),
+                UUID.randomUUID(),
+                None
+              )
             )
-          )
-          .map(_ => assertCompletes)
+        yield assertCompletes
       },
       test("findAll with spec") {
-        userRepo
-          .zFindAll(uspec)
-          .map(users => assert(users.size)(equalTo(1)))
+        for
+          given DataSource <- ZIO.service[DataSource]
+          users <- userRepo
+            .zFindAll(uspec)
+        yield assert(users.size)(equalTo(1))
       }
     ).provide(
       testDataSouurceLayer,

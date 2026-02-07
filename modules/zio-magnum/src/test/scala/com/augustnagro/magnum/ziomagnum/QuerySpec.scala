@@ -5,6 +5,7 @@ import zio.test.Assertion.*
 import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
 import scala.language.implicitConversions
+import javax.sql.DataSource
 
 object QuerySpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
 
@@ -17,26 +18,32 @@ object QuerySpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
 
         given SqlLogger =
           Slf4jMagnumLogger.logSlowQueries(1.milliseconds)
-
-        sql"SELECT * FROM users"
-          .zQuery[User]
-          .map(users => assert(users.size)(equalTo(5)))
+        for
+          given DataSource <- ZIO.service[DataSource]
+          users <- sql"SELECT * FROM users"
+            .zQuery[User]
+        yield assert(users.size)(equalTo(5))
 
       },
       test("Sharing a connection") {
-        withConnection:
-          sql"SELECT * FROM users"
-            .zQuery[User]
-            .map(users => assert(users.size)(equalTo(5)))
-            *>
-              sql"SELECT * FROM users"
-                .zQuery[User]
-                .map(users => assert(users.size)(equalTo(5)))
+
+        for {
+          given DataSource <- ZIO.service[DataSource]
+          users <- withConnection:
+            sql"SELECT * FROM users"
+              .zQuery[User]
+              .map(users => assert(users.size)(equalTo(5)))
+              *>
+                sql"SELECT * FROM users"
+                  .zQuery[User]
+        } yield assert(users.size)(equalTo(5))
 
       },
       test("Streaming a table") {
         val program = for {
           _ <- ZIO.logDebug("Starting stream")
+          given DataSource <- ZIO.service[DataSource]
+
           zs = sql"SELECT * FROM users".zStream[User]()
           _ <- zs.runForeach(user => ZIO.logDebug(s"User from stream: $user"))
           count <- zs.runCount
@@ -49,6 +56,7 @@ object QuerySpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
       },
       test("Joining two tables") {
         val program = for
+          given DataSource <- ZIO.service[DataSource]
           zs = sql"""
        SELECT ${user.all}, ${projects.name}
        FROM $user

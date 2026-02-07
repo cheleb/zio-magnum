@@ -37,7 +37,11 @@ object ZIOMagnumDemo extends zio.ZIOAppDefault:
   val repo = Repo[User, User, Int]
 
   // Example of inserting a user into the database
-  private val program: RIO[DataSource, Unit] = repo.zInsert(User(0, "Alice"))
+  private val program: RIO[Unit] =
+     for
+       given DataSource <- ZIO.service[DataSource]
+       _ <-repo.zInsert(User(0, "Alice"))
+      yield ()
 
   override def run = program
     .provide:
@@ -55,7 +59,7 @@ object ZIOMagnumDemo extends zio.ZIOAppDefault:
 
 ```scala sc:nocompile
 // Import necessary libraries
-  val program: ZIO[DataSource, Throwable, Vector[User]] = sql"SELECT * FROM users"
+  val program: DataSource ?=> Task[Vector[User]] = sql"SELECT * FROM users"
           .zQuery[User]
 ```
 
@@ -63,7 +67,8 @@ object ZIOMagnumDemo extends zio.ZIOAppDefault:
 
 ```scala sc:nocompile
 for:
- zs: ZStream[DataSource, Throwable, User] = sql"SELECT * FROM users".zStream[User]()
+ given DataSource <- ZIO.service[DataSource] 
+ zs: ZStream[Any, Throwable, User] = sql"SELECT * FROM users".zStream[User]()
  _ <- zs.runForeach(user => ZIO.logDebug(s"User from stream: $user"))
  count <- zs.runCount
 yield count
@@ -72,7 +77,7 @@ yield count
 ## Transactional support
 
 ```scala sc:nocompile
-val program: RIO[DataSource, Vector[Int]] =
+val program: DataSource ?=> Task[Vector[Int]] =
           for
             tx <- transaction(
               userRepo.zInsert(User(0, "Test User"))
