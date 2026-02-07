@@ -412,20 +412,20 @@ extension (update: Update)(using sqlLogger: SqlLogger)
 
 /** Provides a ZIO-based query interface for the given `Frag`.
   */
-extension (frag: Frag)(using SqlLogger)
+extension (frag: Frag)(using SqlLogger, DataSource)
   /** Runs the query and returns a vector of results.
     *
     * @param A
     * @return
     */
-  def zQuery[A: DbCodec]: DataSource ?=> Task[Vector[A]] =
+  def zQuery[A: DbCodec]: Task[Vector[A]] =
     frag.query[A].zrun
 
   /** Runs the update and returns the number of rows affected.
     *
     * @return
     */
-  def zUpdate: DataSource ?=> Task[Int] =
+  def zUpdate: Task[Int] =
     frag.update.zrun
 
   /** Runs the query and returns a stream of results.
@@ -437,7 +437,7 @@ extension (frag: Frag)(using SqlLogger)
     */
   def zStream[A: DbCodec](
       fetchSize: Int = 10
-  ): DataSource ?=> ZStream[Any, Throwable, A] =
+  ): ZStream[Any, Throwable, A] =
     frag.query[A].zstream(fetchSize)
 
 /** Provides a ZIO-based query interface for the given `ImmutableRepo`.
