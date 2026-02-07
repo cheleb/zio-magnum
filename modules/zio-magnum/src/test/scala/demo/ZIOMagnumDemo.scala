@@ -11,15 +11,20 @@ object ZIOMagnumDemo extends ZIOAppDefault:
 
   @SqlName("users")
   @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
-  case class UserCreator(name: String, photo: Option[Array[Byte]], myuuid: UUID)
-      derives DbCodec
+  case class UserCreator(
+      name: String,
+      photo: Option[Array[Byte]],
+      myuuid: UUID,
+      nullableUuid: Option[UUID]
+  ) derives DbCodec
   @SqlName("users")
   @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
   case class User(
       @Id id: Int,
       name: String,
       photo: Option[Array[Byte]],
-      myuuid: UUID
+      myuuid: UUID,
+      nullableUuid: Option[UUID]
   ) derives DbCodec
 
   val repo = Repo[UserCreator, User, Int]
@@ -35,7 +40,8 @@ object ZIOMagnumDemo extends ZIOAppDefault:
               .getResourceAsStream("/iranmaiden.png")
               .readAllBytes()
           ),
-          UUID.randomUUID()
+          UUID.randomUUID(),
+          Some(UUID.randomUUID())
         )
       )
       _ <-

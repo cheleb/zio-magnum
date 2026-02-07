@@ -1,0 +1,34 @@
+@startuml "zio-magnum"
+top to bottom direction
+
+package "User Application" {
+  [Application Code] as A
+  [ZIO Effects] as B
+  A --> B
+}
+
+package "ZIO Magnum Layer" {
+  [DataSource Layer] as C
+  [Connection Management] as D
+  [Transaction Support] as E
+  B --> C
+  B --> D
+  B --> E
+}
+
+package "Magnum Core" {
+  [SQL Query Building] as F
+  [PreparedStatement Handling] as G
+  [Transaction Logic] as H
+  C --> F
+  D --> G
+  E --> H
+}
+
+package "Database" {
+  [PostgreSQL/MySQL] as I
+  F --> I
+  G --> I
+  H --> I
+}
+@enduml

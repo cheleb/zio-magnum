@@ -46,7 +46,7 @@ jobs:
         run: |
           export VERSION=`git describe --tags --abbrev=0 | sed "s/v//"`
           echo "Documentation version: $VERSION"
-          sbt makeSite
+          sbt website
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact

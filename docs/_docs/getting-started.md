@@ -1,3 +1,7 @@
+---
+title: Getting Started
+---
+
 # Getting Started
 
 Scalfolding ZIO Magnum is straightforward. This guide will help you set up ZIO Magnum in your Scala project and provide a simple example to get you started.

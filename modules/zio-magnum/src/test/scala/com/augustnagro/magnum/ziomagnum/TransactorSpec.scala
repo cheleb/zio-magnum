@@ -38,7 +38,9 @@ object TransactorSpec
         val program =
           for
             _ <- transaction(
-              userRepo.zInsert(User(0, "Test User", None, UUID.randomUUID()))
+              userRepo.zInsert(
+                User(0, "Test User", None, UUID.randomUUID(), None)
+              )
             )
             count <- sql"SELECT COUNT(*) FROM users".zQuery[Int]
           yield count
@@ -68,7 +70,15 @@ object TransactorSpec
         val program: RIO[DataSource, Vector[Int]] =
           for
             _ <- transaction(
-              userRepo.zInsert(User(0, "Test User", None, UUID.randomUUID()))
+              userRepo.zInsert(
+                User(
+                  0,
+                  "Test User",
+                  None,
+                  UUID.randomUUID(),
+                  Some(User.Id(UUID.randomUUID()))
+                )
+              )
                 *>
                   sql"SELECT booommmmm FROM users"
                     .zQuery[Int]
@@ -84,7 +94,15 @@ object TransactorSpec
         val program: RIO[DataSource, Vector[Int]] =
           for
             _ <- transaction(
-              userRepo.zInsert(User(0, "Test User", None, UUID.randomUUID()))
+              userRepo.zInsert(
+                User(
+                  0,
+                  "Test User",
+                  None,
+                  UUID.randomUUID(),
+                  Some(User.Id(UUID.randomUUID()))
+                )
+              )
                 *>
                   sql"SELECT count(*) FROM users"
                     .zQuery[Int]
