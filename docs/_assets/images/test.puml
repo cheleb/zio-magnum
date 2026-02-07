@@ -1,5 +1,5 @@
 @startuml "D"
-left to right direction
+top to bottom direction
 
 package "User Application" {
   [Application Code] as A
