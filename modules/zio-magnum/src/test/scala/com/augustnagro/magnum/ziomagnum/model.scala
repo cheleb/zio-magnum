@@ -21,6 +21,15 @@ case class User(
     myuuid: UUID,
     nullableUuid: Option[User.Id]
 ) derives DbCodec
+@SqlName("users")
+@Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
+case class UserUnordered(
+    @Id id: Int,
+    myuuid: UUID,
+    name: String,
+    photo: Option[Array[Byte]],
+    nullableUuid: Option[User.Id]
+) derives DbCodec
 
 object User:
   opaque type Id <: UUID = UUID

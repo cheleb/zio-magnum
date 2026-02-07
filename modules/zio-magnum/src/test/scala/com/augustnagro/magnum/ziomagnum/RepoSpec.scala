@@ -13,9 +13,11 @@ object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
   given SqlLogger =
     Slf4jMagnumLogger.logSlowQueries(1.milli)
 
-  val userRepo = Repo[UserCreator, User, Int]
+  type UserType = User
 
-  val uspec = Spec[User]
+  val userRepo = Repo[UserCreator, UserType, Int]
+
+  val uspec = Spec[UserType]
     .where(sql"name ILIKE 'Ch%'")
     .seek("id", SeekDir.Gt, 1, SortOrder.Asc)
     .limit(10)
