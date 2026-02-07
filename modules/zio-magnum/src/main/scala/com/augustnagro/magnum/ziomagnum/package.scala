@@ -303,7 +303,10 @@ extension [A](query: Query[A])(using reader: DbCodec[A], sqlLogger: SqlLogger)
         )
         .timed
         .tapError(e =>
-          ZIO.logError(s"Failed to execute query: ${e.getMessage()}")
+          ZIO.logErrorCause(
+            s"Failed to execute query: ${e.getMessage()}",
+            Cause.fail(e)
+          )
         )
     yield (execTime, reader.read(rs)))
       .map((execTime, result) =>

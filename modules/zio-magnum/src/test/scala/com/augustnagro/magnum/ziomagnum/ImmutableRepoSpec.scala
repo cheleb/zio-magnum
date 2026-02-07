@@ -52,7 +52,8 @@ object ImmutableRepoSpec
                     1,
                     "Alice",
                     None,
-                    UUID.fromString("c0ce7a15-c0c2-4a32-8462-33f82764f2f2")
+                    UUID.fromString("c0ce7a15-c0c2-4a32-8462-33f82764f2f2"),
+                    None
                   )
                 )
               )

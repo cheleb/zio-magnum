@@ -13,7 +13,7 @@ object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
   given SqlLogger =
     Slf4jMagnumLogger.logSlowQueries(1.milli)
 
-  val userRepo = Repo[User, User, Int]
+  val userRepo = Repo[UserCreator, User, Int]
 
   val uspec = Spec[User]
     .where(sql"name ILIKE 'Ch%'")
@@ -29,9 +29,8 @@ object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
       },
       test("Insert") {
         userRepo
-          .zInsert(
-            User(
-              0,
+          .zInsertReturning(
+            UserCreator(
               "New User",
               Some(
                 RepoSpec
@@ -39,7 +38,8 @@ object RepoSpec extends ZIOSpecDefault with RepositorySpec("sql/users.sql") {
                   .getResourceAsStream("/iranmaiden.png")
                   .readAllBytes()
               ),
-              UUID.randomUUID()
+              UUID.randomUUID(),
+              None
             )
           )
           .map(_ => assertCompletes)

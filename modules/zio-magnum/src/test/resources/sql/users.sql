@@ -4,7 +4,8 @@ CREATE TABLE "users"(
     id serial PRIMARY KEY,
     name text NOT NULL,
     photo bytea,
-    myuuid uuid NOT NULL
+    myuuid uuid NOT NULL,
+    nullable_uuid uuid
 );
 
 CREATE TABLE projects(
