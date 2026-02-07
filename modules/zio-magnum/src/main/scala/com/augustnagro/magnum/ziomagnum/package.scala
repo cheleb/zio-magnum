@@ -38,9 +38,9 @@ private val currentConnection: FiberRef[Option[Connection]] =
  * Otherwise create a new
  * connection using the DataSource, put it in the fiberRef, and remove it when done.
  */
-private def withConnection[R <: DataSource, A](
-    op: Connection ?=> RIO[R, A]
-): RIO[R, A] =
+private def withConnection[A](
+    op: Connection ?=> Task[A]
+): DataSource ?=> Task[A] =
   currentConnection.get.flatMap {
     case Some(connection) => op(using connection)
     case None             =>
@@ -51,9 +51,9 @@ private def withConnection[R <: DataSource, A](
 
 /** Provides a database connection for the duration of the operation.
   */
-private def withDbConnection[R <: DataSource, A](
-    op: DbCon ?=> RIO[R, A]
-)(using sqlLogger: SqlLogger): RIO[R, A] =
+private def withDbConnection[A](
+    op: DbCon ?=> Task[A]
+)(using sqlLogger: SqlLogger, dataSource: DataSource): Task[A] =
   currentConnection.get.flatMap {
     case Some(connection) => op(using DbCon(connection, sqlLogger))
     case None             =>
@@ -72,9 +72,9 @@ private def withDbConnection[R <: DataSource, A](
   * @param op
   * @return
   */
-private def withScopedConnection[R <: DataSource & Scope, A](
-    op: Connection ?=> RIO[R, A]
-): ZIO[R, Throwable, A] =
+private def withScopedConnection[A](
+    op: Connection ?=> RIO[Scope, A]
+): DataSource ?=> RIO[Scope, A] =
   currentConnection.get.flatMap {
     case Some(connection) => op(using connection)
     case None             =>
@@ -111,9 +111,8 @@ yield ps
   */
 private def fiberRefConnection(
     tx: Boolean
-): RIO[DataSource & Scope, Connection] =
+)(using dataSource: DataSource): RIO[Scope, Connection] =
   for {
-    dataSource <- ZIO.service[DataSource]
     connection <- scopedBestEffort(
       ZIO.logDebug("Creating new connection") *>
         // Use `ZIO.attemptBlocking` to ensure that the blocking operation is run on a
@@ -238,9 +237,9 @@ def customDataSourceLayer(jdbcUrl: String, username: String, password: String)(
   * @param op
   * @return
   */
-def transaction[R <: DataSource, A](
-    op: Connection ?=> RIO[R, A]
-): RIO[R, A] =
+def transaction[A](
+    op: Connection ?=> Task[A]
+)(using dataSource: DataSource): Task[A] =
   currentConnection.get.flatMap {
     case Some(connection) =>
       ZIO.scoped:
@@ -326,7 +325,7 @@ extension [A](query: Query[A])(using reader: DbCodec[A], sqlLogger: SqlLogger)
     * @param R
     * @return
     */
-  private def zrun[R <: DataSource]: RIO[R, Vector[A]] =
+  private def zrun: DataSource ?=> Task[Vector[A]] =
     withConnection:
       toZIO
 
@@ -338,7 +337,7 @@ extension [A](query: Query[A])(using reader: DbCodec[A], sqlLogger: SqlLogger)
     */
   private def zstream(
       fetchSize: Int
-  ): ZStream[DataSource, Throwable, A] =
+  )(using DataSource): ZStream[Any, Throwable, A] =
     ZStream.unwrapScoped(
       withScopedConnection:
         ziterator(fetchSize)
@@ -408,7 +407,7 @@ extension (update: Update)(using sqlLogger: SqlLogger)
         result
       )
 
-  def zrun[R <: DataSource]: RIO[R, Int] = withConnection:
+  def zrun: DataSource ?=> Task[Int] = withConnection:
     toZIO
 
 /** Provides a ZIO-based query interface for the given `Frag`.
@@ -419,14 +418,14 @@ extension (frag: Frag)(using SqlLogger)
     * @param A
     * @return
     */
-  def zQuery[A: DbCodec]: RIO[DataSource, Vector[A]] =
+  def zQuery[A: DbCodec]: DataSource ?=> Task[Vector[A]] =
     frag.query[A].zrun
 
   /** Runs the update and returns the number of rows affected.
     *
     * @return
     */
-  def zUpdate: RIO[DataSource, Int] =
+  def zUpdate: DataSource ?=> Task[Int] =
     frag.update.zrun
 
   /** Runs the query and returns a stream of results.
@@ -438,7 +437,7 @@ extension (frag: Frag)(using SqlLogger)
     */
   def zStream[A: DbCodec](
       fetchSize: Int = 10
-  ): ZStream[DataSource, Throwable, A] =
+  ): DataSource ?=> ZStream[Any, Throwable, A] =
     frag.query[A].zstream(fetchSize)
 
 /** Provides a ZIO-based query interface for the given `ImmutableRepo`.
@@ -449,7 +448,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])(using SqlLogger)
     *
     * @return
     */
-  def zcount: ZIO[R, Throwable, Long] =
+  def zcount: DataSource ?=> Task[Long] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.count
@@ -462,7 +461,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])(using SqlLogger)
     */
   def zExistsById(
       id: K
-  ): ZIO[R, Throwable, Boolean] =
+  ): DataSource ?=> Task[Boolean] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.existsById(id)
@@ -471,7 +470,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])(using SqlLogger)
     */
   def zFindById(
       id: K
-  ): RIO[R, Option[A]] =
+  ): DataSource ?=> Task[Option[A]] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.findById(id)
@@ -480,7 +479,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])(using SqlLogger)
     *
     * @return
     */
-  def zFindAll: RIO[R, Vector[A]] =
+  def zFindAll: DataSource ?=> Task[Vector[A]] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.findAll
@@ -491,7 +490,7 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])(using SqlLogger)
     *   The specification to use for filtering the results.
     * @return
     */
-  def zFindAll(spec: Spec[A]): RIO[R, Vector[A]] =
+  def zFindAll(spec: Spec[A]): DataSource ?=> Task[Vector[A]] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.findAll(spec)
@@ -504,22 +503,24 @@ extension [R <: DataSource, A, K](repo: ImmutableRepo[A, K])(using SqlLogger)
     */
   def zFindAllById(
       ids: Set[K]
-  ): RIO[R, Vector[A]] =
+  ): DataSource ?=> Task[Vector[A]] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.findAllById(ids)
 
 /** Provides a ZIO-based query interface for the given `Repo`.
   */
-extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])(using SqlLogger)
+extension [EC, A, K](repo: Repo[EC, A, K])(using SqlLogger)
 
-  /** Counts the number of rows in the table.
+  /** Deletes a row by its id.
     *
+    * @param id
+    *   The id of the row to delete.
     * @return
     */
   def zDeleteById(
       id: K
-  ): RIO[R, Unit] =
+  ): DataSource ?=> Task[Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.deleteById(id)
@@ -532,7 +533,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])(using SqlLogger)
     */
   def zDeleteAll(
       set: Set[A]
-  ): RIO[R, Unit] =
+  ): DataSource ?=> Task[Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.deleteAll(set)
@@ -545,7 +546,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])(using SqlLogger)
     */
   def zDeleteAllById(
       ids: Set[K]
-  ): RIO[R, Unit] =
+  ): DataSource ?=> Task[Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.deleteAllById(ids)
@@ -558,7 +559,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])(using SqlLogger)
     */
   def zInsert(
       a: EC
-  ): RIO[R, Unit] =
+  ): DataSource ?=> Task[Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.insert(a)
@@ -572,7 +573,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])(using SqlLogger)
     */
   def zInsertReturning(
       a: EC
-  ): RIO[R, A] =
+  ): DataSource ?=> Task[A] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.insertReturning(a)
@@ -586,7 +587,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])(using SqlLogger)
     */
   def zInsertAll(
       set: Set[EC]
-  ): RIO[R, Unit] =
+  ): DataSource ?=> Task[Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.insertAll(set)
@@ -600,7 +601,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])(using SqlLogger)
     */
   def zInsertAllReturning(
       set: Set[EC]
-  ): RIO[R, Vector[A]] =
+  ): DataSource ?=> Task[Vector[A]] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.insertAllReturning(set)
@@ -609,7 +610,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])(using SqlLogger)
     *
     * @return
     */
-  def zTruncate(): RIO[R, Unit] =
+  def zTruncate(): DataSource ?=> Task[Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.truncate()
@@ -622,7 +623,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])(using SqlLogger)
     */
   def zUpdate(
       a: A
-  ): RIO[R, Unit] =
+  ): DataSource ?=> Task[Unit] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.update(a)
@@ -635,7 +636,7 @@ extension [R <: DataSource, EC, A, K](repo: Repo[EC, A, K])(using SqlLogger)
     */
   def zUpdateAll(
       set: Set[A]
-  ): RIO[R, BatchUpdateResult] =
+  ): DataSource ?=> Task[BatchUpdateResult] =
     withDbConnection:
       ZIO.attemptBlocking:
         repo.updateAll(set)

@@ -6,6 +6,7 @@ import zio.test.{Spec as ZSpec, *}
 import com.augustnagro.magnum.*
 import scala.language.implicitConversions
 import java.util.UUID
+import javax.sql.DataSource
 
 object ImmutableRepoSpec
     extends ZIOSpecDefault
@@ -24,56 +25,68 @@ object ImmutableRepoSpec
   override def spec: ZSpec[TestEnvironment & Scope, Any] =
     suite("ZIO Magnum ImmutableRepo")(
       test("zcount") {
-        userRepo.zcount
-          .map(count => assert(count)(equalTo(5)))
+        for
+          given DataSource <- ZIO.service[DataSource]
+          count <- userRepo.zcount
+        yield assert(count)(equalTo(5))
       },
       test("existsById") {
-        userRepo
-          .zExistsById(1)
-          .map(exists => assert(exists)(isTrue))
+        for
+          given DataSource <- ZIO.service[DataSource]
+          exists <- userRepo
+            .zExistsById(1)
+        yield assert(exists)(isTrue)
       },
       test("findAll") {
-        userRepo.zFindAll
-          .map(users => assert(users.size)(equalTo(5)))
+        for
+          given DataSource <- ZIO.service[DataSource]
+          users <- userRepo.zFindAll
+        yield assert(users.size)(equalTo(5))
       },
       test("findAll with spec") {
-        userRepo
-          .zFindAll(uspec)
-          .map(users => assert(users.size)(equalTo(1)))
+        for
+          given DataSource <- ZIO.service[DataSource]
+          users <- userRepo
+            .zFindAll(uspec)
+        yield assert(users.size)(equalTo(1))
       },
       test("findById") {
-        userRepo
-          .zFindById(1)
-          .map(user =>
-            assert(user)(
-              isSome(
-                equalTo(
-                  User(
-                    1,
-                    "Alice",
-                    None,
-                    UUID.fromString("c0ce7a15-c0c2-4a32-8462-33f82764f2f2"),
-                    None
-                  )
-                )
+        for
+          given DataSource <- ZIO.service[DataSource]
+          user <- userRepo
+            .zFindById(1)
+        yield assert(user)(
+          isSome(
+            equalTo(
+              User(
+                1,
+                "Alice",
+                None,
+                UUID.fromString("c0ce7a15-c0c2-4a32-8462-33f82764f2f2"),
+                None
               )
             )
           )
+        )
+
       },
       test("findById not found") {
-        userRepo
-          .zFindById(999)
-          .map(user => assert(user)(isNone))
+        for
+          given DataSource <- ZIO.service[DataSource]
+          user <- userRepo.zFindById(999)
+        yield assert(user)(isNone)
       },
       test("findAllByIds") {
-        userRepo
-          .zFindAllById(Set(1, 2, 3))
-          .map(users => assert(users.size)(equalTo(3)))
+        for
+          given DataSource <- ZIO.service[DataSource]
+          users <- userRepo.zFindAllById(Set(1, 2, 3))
+        yield assert(users.size)(equalTo(3))
       },
       test("findAllByIds with non-existent ID") {
-        userRepo
-          .zFindAllById(Set(999))
-          .map(users => assert(users)(isEmpty))
+        for
+          given DataSource <- ZIO.service[DataSource]
+          users <- userRepo.zFindAllById(Set(999))
+        yield assert(users)(isEmpty)
       }
     ).provide(
       testDataSouurceLayer,
