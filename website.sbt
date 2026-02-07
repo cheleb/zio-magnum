@@ -15,7 +15,7 @@ addMappingsToSiteDir(
   ScalaUnidoc / packageDoc / mappings,
   ScalaUnidoc / siteSubdirName
 )
-git.remoteRepo := "git@github.com:cheleb/laminar-form-derivation.git"
+git.remoteRepo := "git@github.com:cheleb/zio-magnum.git"
 ghpagesNoJekyll := true
 Compile / doc / scalacOptions ++= Seq(
   "-siteroot",
