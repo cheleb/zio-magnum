@@ -31,6 +31,7 @@ object ZIOMagnumDemo extends ZIOAppDefault:
 
   private val program: RIO[DataSource, Unit] =
     for
+      given DataSource <- ZIO.service[DataSource]
       _ <- repo.zInsertReturning(
         UserCreator(
           "Alice",
