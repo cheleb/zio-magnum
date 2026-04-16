@@ -4,7 +4,7 @@ val Versions = new {
   val logbackClassic = "1.5.32"
   val zio = "2.1.24"
   val testcontainers = "0.43.0"
-  val munit = "1.2.2"
+  val munit = "1.3.0"
   val postgresDriver = "42.7.10"
   val magnum = "2.0.0-M3"
 }
