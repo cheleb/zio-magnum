@@ -2,7 +2,7 @@ val scala3Version = "3.8.3"
 
 val Versions = new {
   val logbackClassic = "1.5.32"
-  val zio = "2.1.24"
+  val zio = "2.1.25"
   val testcontainers = "0.43.0"
   val munit = "1.2.2"
   val postgresDriver = "42.7.10"
