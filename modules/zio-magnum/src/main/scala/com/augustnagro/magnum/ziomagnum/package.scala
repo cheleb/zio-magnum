@@ -19,8 +19,11 @@ import scala.language.implicitConversions
   */
 
 /** Default SQL logger that uses SLF4J. */
-implicit val sqlLogger: SqlLogger =
-  Slf4jMagnumLogger.Default
+// implicit val defaultSqlLogger: SqlLogger =
+//   Slf4jMagnumLogger.Default
+
+/** Default no-op tracer for ZIO Magnum. */
+implicit val zioNoopMagnumTracer: ZIOMagnumTracer = ZIOMagnumTracer.noopTracer
 
 /** Current database connection for the fiber */
 private val currentConnection: FiberRef[Option[Connection]] =
@@ -42,10 +45,12 @@ private def withConnection[A](
     op: Connection ?=> Task[A]
 ): DataSource ?=> Task[A] =
   currentConnection.get.flatMap {
-    case Some(connection) => op(using connection)
-    case None             =>
+    case Some(connection) =>
+      op(using connection)
+    case None =>
       ZIO.scoped(
-        fiberRefConnection(false).flatMap(connection => op(using connection))
+        fiberRefConnection(false).flatMap: connection =>
+          op(using connection)
       )
   }
 
@@ -55,8 +60,9 @@ private def withDbConnection[A](
     op: DbCon ?=> Task[A]
 )(using sqlLogger: SqlLogger, dataSource: DataSource): Task[A] =
   currentConnection.get.flatMap {
-    case Some(connection) => op(using DbCon(connection, sqlLogger))
-    case None             =>
+    case Some(connection) =>
+      op(using DbCon(connection, sqlLogger))
+    case None =>
       ZIO.scoped(
         fiberRefConnection(false).flatMap(connection =>
           op(using DbCon(connection, sqlLogger))
@@ -76,8 +82,9 @@ private def withScopedConnection[A](
     op: Connection ?=> RIO[Scope, A]
 ): DataSource ?=> RIO[Scope, A] =
   currentConnection.get.flatMap {
-    case Some(connection) => op(using connection)
-    case None             =>
+    case Some(connection) =>
+      op(using connection)
+    case None =>
       fiberRefConnection(false).flatMap(db => op(using db))
   }
 
@@ -114,7 +121,7 @@ private def fiberRefConnection(
 )(using dataSource: DataSource): RIO[Scope, Connection] =
   for {
     connection <- scopedBestEffort(
-      ZIO.logDebug("Creating new connection") *>
+      ZIO.logTrace("Creating new connection !") *>
         // Use `ZIO.attemptBlocking` to ensure that the blocking operation is run on a
         // blocking thread pool, preventing it from blocking the ZIO runtime.
         ZIO.attemptBlocking(dataSource.getConnection)
@@ -141,7 +148,7 @@ private def fiberRefConnection(
                 th
               ),
             _ =>
-              ZIO.logDebug(
+              ZIO.logTrace(
                 "Transaction committed successfully"
               )
           )
@@ -155,7 +162,7 @@ private def fiberRefConnection(
                 th
               ),
             _ =>
-              ZIO.logDebug(
+              ZIO.logTrace(
                 s"Transaction rolled back successfully after failure: ${cause.prettyPrint}"
               )
           )
@@ -176,7 +183,10 @@ private def scopedBestEffort[R, E, A <: AutoCloseable](
       .tapError(e =>
         ZIO
           .attempt(
-            ZIO.logError(s"close() of resource failed: ${e.getMessage()}")
+            ZIO.logErrorCause(
+              s"close() of resource failed: ${e.getMessage()}",
+              Cause.fail(e)
+            )
           )
           .ignore
       )
@@ -237,53 +247,57 @@ def customDataSourceLayer(jdbcUrl: String, username: String, password: String)(
   * @param op
   * @return
   */
-def transaction[A](
-    op: Connection ?=> Task[A]
-)(using dataSource: DataSource): Task[A] =
-  currentConnection.get.flatMap {
-    case Some(connection) =>
-      ZIO.scoped:
-        // Get the current value of auto-commit
-        for
-          _ <- ZIO.logDebug("Disabling auto-commit for transaction")
-          prevAutoCommit <- ZIO.attemptBlocking(connection.getAutoCommit)
-          // Disable auto-commit since we need to be able to roll back. Once everything is done, set it
-          // to whatever the previous value was.
-          _ <- ZIO.when(prevAutoCommit)(
-            ZIO.acquireReleaseExit(
-              ZIO.attemptBlocking(connection.setAutoCommit(false))
-            ) {
 
-              case (_, Success(_)) =>
-                ZIO.blocking(ZIO.succeed(connection.commit()))
-                  *> ZIO
-                    .attemptBlocking(connection.setAutoCommit(prevAutoCommit))
-                    .orDie
-                  *> ZIO.logDebug("Transaction committed successfully.")
-              case (_, Failure(cause)) =>
-                ZIO.blocking(ZIO.succeed(connection.rollback()))
-                  *>
-                    ZIO
+def transaction[A](label: String)(
+    op: Connection ?=> Task[A]
+)(using dataSource: DataSource, tracer: ZIOMagnumTracer): Task[A] =
+  tracer(s"🛢: $label"):
+    currentConnection.get.flatMap {
+      case Some(connection) =>
+        ZIO.scoped:
+          // Get the current value of auto-commit
+          for
+            _ <- ZIO.logTrace("Disabling auto-commit for transaction")
+            prevAutoCommit <- ZIO.attemptBlocking(connection.getAutoCommit)
+            // Disable auto-commit since we need to be able to roll back. Once everything is done, set it
+            // to whatever the previous value was.
+            _ <- ZIO.when(prevAutoCommit)(
+              ZIO.acquireReleaseExit(
+                ZIO.attemptBlocking(connection.setAutoCommit(false))
+              ) {
+
+                case (_, Success(_)) =>
+                  ZIO.blocking(ZIO.succeed(connection.commit()))
+                    *> ZIO
                       .attemptBlocking(connection.setAutoCommit(prevAutoCommit))
                       .orDie
-                    *> ZIO.logWarning(
-                      s"Transaction rolled back due to failure: ${cause.prettyPrint}"
-                    )
-            }
-          )
+                    *> ZIO.logTrace("Transaction committed successfully.")
+                case (_, Failure(cause)) =>
+                  ZIO.blocking(ZIO.succeed(connection.rollback()))
+                    *>
+                      ZIO
+                        .attemptBlocking(
+                          connection.setAutoCommit(prevAutoCommit)
+                        )
+                        .orDie
+                      *> ZIO.logWarningCause(
+                        s"Transaction rolled back due to failure: ${cause.prettyPrint}",
+                        cause
+                      )
+              }
+            )
 
-          res <- op(using connection)
-        yield res
+            res <- op(using connection)
+          yield res
 
-    case None =>
-      ZIO.scoped:
-        fiberRefConnection(true).flatMap(db => op(using db))
-  }
+      case None =>
+        ZIO.scoped:
+          fiberRefConnection(true).flatMap(db => op(using db))
+    }
 
 /** Provides a ZIO-based query interface for the given `Query[A]`.
   */
-extension [A](query: Query[A])(using reader: DbCodec[A], sqlLogger: SqlLogger)
-
+extension [A](query: Query[A])(using reader: DbCodec[A])
   /** An ZIO that:
     *   - prepares the statement
     *   - runs the query
@@ -293,7 +307,10 @@ extension [A](query: Query[A])(using reader: DbCodec[A], sqlLogger: SqlLogger)
     *   The database connection to use.
     * @return
     */
-  private def toZIO(using connection: Connection): Task[Vector[A]] = ZIO.scoped:
+  private def toZIO(using
+      connection: Connection,
+      sqlLogger: SqlLogger
+  ): Task[Vector[A]] = ZIO.scoped:
     (for
       ps <- prepareStatement(connection, query.frag)
       (execTime, rs) <- ZIO
@@ -325,7 +342,7 @@ extension [A](query: Query[A])(using reader: DbCodec[A], sqlLogger: SqlLogger)
     * @param R
     * @return
     */
-  private def zrun: DataSource ?=> Task[Vector[A]] =
+  private def zrun(using SqlLogger): DataSource ?=> Task[Vector[A]] =
     withConnection:
       toZIO
 
@@ -335,14 +352,20 @@ extension [A](query: Query[A])(using reader: DbCodec[A], sqlLogger: SqlLogger)
     * @param fetchSize
     *   the number of rows to fetch at a time from the database.
     */
-  private def zstream(
-      fetchSize: Int
-  )(using DataSource): ZStream[Any, Throwable, A] =
+  private def zInnerStream(
+      label: String,
+      fetchSize: Int = 10
+  )(using
+      ds: DataSource,
+      tracer: ZIOMagnumTracer,
+      SqlLogger: SqlLogger
+  ): ZStream[Any, Throwable, A] =
     ZStream.unwrapScoped(
-      withScopedConnection:
-        ziterator(fetchSize)
-          .map: it =>
-            ZStream.fromIterator(it)
+      tracer(s"⏩ ${label} ⏩"):
+        withScopedConnection:
+          ziterator(fetchSize)
+            .map: it =>
+              ZStream.fromIterator(it)
     )
 
   /** Creates a `ResultSetIterator` for the given `Query[A]`.
@@ -351,12 +374,17 @@ extension [A](query: Query[A])(using reader: DbCodec[A], sqlLogger: SqlLogger)
     *   the number of rows to fetch at a time from the database.
     * @return
     */
+
   private def ziterator(
       fetchSize: Int
   )(using
-      connection: Connection
+      connection: Connection,
+      sqlLogger: SqlLogger
   ): RIO[Scope, ResultSetIterator[A]] =
+
     for
+      _ <- ZIO.logDebug(query.frag.sqlString)
+
       ps <- prepareStatement(connection, query.frag)
 
       _ = ps.setFetchSize(fetchSize)
@@ -393,7 +421,7 @@ extension (update: Update)(using sqlLogger: SqlLogger)
       )
       _ = update.frag.writer.write(ps, 1)
       _ <- ZIO.logDebug(
-        s"Executing update: ${update.frag.sqlString} with params: ${update.frag.params}"
+        s"Update: ${update.frag.sqlString} with params: ${update.frag.params}"
       )
     yield ps.executeUpdate()).timed
       .map((execTime, result) =>
@@ -412,7 +440,7 @@ extension (update: Update)(using sqlLogger: SqlLogger)
 
 /** Provides a ZIO-based query interface for the given `Frag`.
   */
-extension (frag: Frag)(using SqlLogger, DataSource)
+extension (frag: Frag)(using DataSource, SqlLogger)
   /** Runs the query and returns a vector of results.
     *
     * @param A
@@ -435,10 +463,13 @@ extension (frag: Frag)(using SqlLogger, DataSource)
     * @param fetchSize
     *   the number of rows to fetch at a time from the database.
     */
+
   def zStream[A: DbCodec](
+      label: String = "",
       fetchSize: Int = 10
-  ): ZStream[Any, Throwable, A] =
-    frag.query[A].zstream(fetchSize)
+  )(using ZIOMagnumTracer): UIO[ZStream[Any, Throwable, A]] =
+    ZIO.succeed:
+      frag.query[A].zInnerStream(label, fetchSize)
 
 /** Provides a ZIO-based query interface for the given `ImmutableRepo`.
   */
@@ -547,6 +578,7 @@ extension [EC, A, K](repo: Repo[EC, A, K])(using SqlLogger)
   def zDeleteAllById(
       ids: Set[K]
   ): DataSource ?=> Task[Unit] =
+
     withDbConnection:
       ZIO.attemptBlocking:
         repo.deleteAllById(ids)
