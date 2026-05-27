@@ -1,7 +1,7 @@
 val scala3Version = "3.8.3"
 
 val Versions = new {
-  val logbackClassic = "1.5.32"
+  val logbackClassic = "1.5.33"
   val zio = "2.1.26"
   val testcontainers = "0.44.1"
   val munit = "1.3.0"
