@@ -7,7 +7,12 @@ import com.augustnagro.magnum.ziomagnum.*
 import javax.sql.DataSource
 import java.util.UUID
 
+import concurrent.duration.DurationInt
+
 object ZIOMagnumDemo extends ZIOAppDefault:
+
+
+  given SqlLogger = Slf4jMagnumLogger.logSlowQueries(1.millis)
 
   @SqlName("users")
   @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
@@ -53,7 +58,7 @@ object ZIOMagnumDemo extends ZIOAppDefault:
     .provide:
       // Provide necessary layers, e.g., database connection, logging, etc.
       Scope.default >>> dataSourceLayer(
-        "jdbc:postgresql://localhost:5432/mydb",
-        "test",
-        "test"
+        "jdbc:postgresql://localhost:5432/zio-magnum-demo",
+        "docker",
+        "docker"
       )
