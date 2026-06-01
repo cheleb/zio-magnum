@@ -82,7 +82,7 @@ lazy val magnumZio = project
       "org.scalameta" %% "munit" % Versions.munit % Test,
       "dev.zio" %% "zio-test" % Versions.zio % Test,
       "dev.zio" %% "zio-test-sbt" % Versions.zio % Test,
-      "ch.qos.logback" % "logback-classic" % "1.5.33" % Test,
+      "ch.qos.logback" % "logback-classic" % "1.5.34" % Test,
       "dev.zio" %% "zio-logging-slf4j" % "2.5.3" % Test
     )
   )
