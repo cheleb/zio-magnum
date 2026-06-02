@@ -1,4 +1,4 @@
-val scala3Version = "3.8.3"
+val scala3Version = "3.8.4"
 
 val Versions = new {
   val logbackClassic = "1.5.34"
