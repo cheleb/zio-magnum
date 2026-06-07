@@ -4,12 +4,19 @@ import zio.*
 
 import com.augustnagro.magnum.*
 import com.augustnagro.magnum.ziomagnum.*
+import com.augustnagro.magnum.ziomagnum.o11y.*
 import javax.sql.DataSource
 import java.util.UUID
+import zio.telemetry.opentelemetry.tracing.Tracing
 
 object ZIOMagnumDemo
-    extends ZIOAppDefault:
+    extends ZIOApp
+    with ZIOpenTelemetry
+    with Logging
+    with Metrics
+    with Traces:
 
+  def resourceName = "demo"
 
   @SqlName("users")
   @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
@@ -31,11 +38,13 @@ object ZIOMagnumDemo
 
   val repo = Repo[UserCreator, User, Int]
 
-  private val program: ZIO[DataSource & SqlLogger, Throwable, Unit] =
+  private val program: ZIO[Tracing & DataSource & SqlLogger, Throwable, Unit] =
     for
       _ <- ZIO.logInfo("Starting ZIO Magnum demo...")
 
+      t: Tracing <- ZIO.service[Tracing]
 
+      given ZIOMagnumTracer = ZIOpenteleMetryMagnumTracer(t)
       given SqlLogger <- ZIO.service[SqlLogger]
 
       given DataSource <- ZIO.service[DataSource]
@@ -72,8 +81,8 @@ object ZIOMagnumDemo
       _ <- ZIO.logInfo("ZIO Magnum demo completed.")
     yield ()
 
-  def run = program
-    .provide(
+  override def run = program
+    .provideSome[Environment](
       Slf4jMagnumLogger.live(),
       // Provide necessary layers, e.g., database connection, logging, etc.
       Scope.default >>> dataSourceLayer(

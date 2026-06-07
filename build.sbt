@@ -3,10 +3,14 @@ val scala3Version = "3.8.4"
 val Versions = new {
   val logbackClassic = "1.5.34"
   val zio = "2.1.26"
+  val zioOpenTelemetry = "3.1.15"
   val testcontainers = "0.44.1"
   val munit = "1.3.2"
   val postgresDriver = "42.7.11"
-  val magnum = "2.0.0-M3"
+  val magnum = "2.0.0-M2"
+  val openTelemetry = "1.62.0"
+  val openTelemetrySemconvVersion = "1.41.0"
+
 }
 
 inThisBuild(
@@ -52,13 +56,14 @@ inThisBuild(
       url(
         "http://www.apache.org/licenses/LICENSE-2.0"
       )
-    )
+    ),
+    outputStrategy    := Some(StdoutOutput)
   )
 )
 
 lazy val root = project
   .in(file("."))
-  .aggregate(magnumZio)
+  .aggregate(magnumZio, magnumZioOpentelemetry, zioMagnumCommonTest)
   .settings(
     name := "ZIO Magnum Root"
   )
@@ -66,7 +71,35 @@ lazy val root = project
     publish / skip := true // Skip publishing for the root project
   )
 
+lazy val zioMagnumCommonTest = project
+  .in(file("modules/common-test"))
+  .settings(
+    name := "zio-magnum-common-test",
+    libraryDependencies ++= Seq(
+      "com.augustnagro" %% "magnum" % Versions.magnum,
+      "dev.zio" %% "zio" % Versions.zio,
+      "dev.zio" %% "zio-streams" % Versions.zio,
+      "com.zaxxer" % "HikariCP" % "7.0.2",
+      "com.dimafeng" %% "testcontainers-scala-munit" % Versions.testcontainers,
+      "com.dimafeng" %% "testcontainers-scala-postgresql" % Versions.testcontainers,      
+      "org.postgresql" % "postgresql" % Versions.postgresDriver ,
+      "org.scalameta" %% "munit" % Versions.munit ,
+      "dev.zio" %% "zio-test" % Versions.zio,
+      "dev.zio" %% "zio-test-sbt" % Versions.zio,
+      "dev.zio" %% "zio-opentelemetry" % Versions.zioOpenTelemetry,
+      "dev.zio" %% "zio-opentelemetry-zio-logging" % Versions.zioOpenTelemetry,
+      "io.opentelemetry.semconv" % "opentelemetry-semconv" % Versions.openTelemetrySemconvVersion,
+      "io.opentelemetry" % "opentelemetry-sdk" % Versions.openTelemetry,
+      "io.opentelemetry" % "opentelemetry-exporter-otlp" % Versions.openTelemetry,
+      "io.opentelemetry" % "opentelemetry-exporter-logging-otlp" % Versions.openTelemetry,
+      "dev.zio" %% "zio-logging-slf4j2-bridge" % "2.5.3",
+
+    )
+  ).settings(
+    publish / skip := true
+  )
 lazy val magnumZio = project
+  .dependsOn(zioMagnumCommonTest % Test)
   .in(file("modules/zio-magnum"))
   .settings(
     name := "zio-magnum",
@@ -75,6 +108,7 @@ lazy val magnumZio = project
       "com.augustnagro" %% "magnum" % Versions.magnum,
       "dev.zio" %% "zio" % Versions.zio,
       "dev.zio" %% "zio-streams" % Versions.zio,
+
       "com.zaxxer" % "HikariCP" % "7.0.2",
       "com.dimafeng" %% "testcontainers-scala-munit" % Versions.testcontainers % Test,
       "com.dimafeng" %% "testcontainers-scala-postgresql" % Versions.testcontainers % Test,
@@ -82,14 +116,30 @@ lazy val magnumZio = project
       "org.scalameta" %% "munit" % Versions.munit % Test,
       "dev.zio" %% "zio-test" % Versions.zio % Test,
       "dev.zio" %% "zio-test-sbt" % Versions.zio % Test,
-      "ch.qos.logback" % "logback-classic" % "1.5.34" % Test,
-      "dev.zio" %% "zio-logging-slf4j" % "2.5.3" % Test
+      "dev.zio" %% "zio-logging-slf4j" % "2.5.3" % Test,
+      "dev.zio" %% "zio-logging-slf4j2-bridge" % "2.5.3" % Test
+    )
+  )
+
+lazy val magnumZioOpentelemetry = project
+  .in(file("modules/zio-magnum-opentelemetry"))
+  .settings(
+    name := "zio-magnum-opentelemetry"
+  ).dependsOn(magnumZio, zioMagnumCommonTest % Test)
+  .settings(
+    libraryDependencies ++= Seq(
+      "dev.zio" %% "zio-opentelemetry" % Versions.zioOpenTelemetry,
+      "dev.zio" %% "zio-opentelemetry-zio-logging" % Versions.zioOpenTelemetry,
+      "io.opentelemetry.semconv" % "opentelemetry-semconv" % Versions.openTelemetrySemconvVersion,
+      "io.opentelemetry" % "opentelemetry-sdk" % Versions.openTelemetry,
+      "io.opentelemetry" % "opentelemetry-exporter-otlp" % Versions.openTelemetry,
+      "io.opentelemetry" % "opentelemetry-exporter-logging-otlp" % Versions.openTelemetry,
     )
   )
 
 lazy val docs = project // new documentation project
   .in(file("zio-magnum-docs")) // important: it must not be docs/
-  .dependsOn(magnumZio)
+  .dependsOn(magnumZio, magnumZioOpentelemetry)
   .settings(
     publish / skip := true,
     moduleName := "zio-magnum-docs",

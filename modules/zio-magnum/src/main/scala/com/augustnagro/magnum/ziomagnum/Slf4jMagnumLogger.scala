@@ -5,6 +5,11 @@ import com.augustnagro.magnum.SqlSuccessEvent
 import com.augustnagro.magnum.SqlExceptionEvent
 import scala.concurrent.duration.FiniteDuration
 
+import zio.ZLayer
+import org.slf4j.LoggerFactory
+import zio.ULayer
+import org.slf4j.Logger
+
 /** SLF4J-based implementation of the SqlLogger trait.
   */
 
@@ -12,13 +17,14 @@ object Slf4jMagnumLogger {
   private def paramsString(params: Iterator[Iterator[Any]]): String =
     params.map(_.mkString("(", ", ", ")")).mkString("", ",\n", "\n")
 
-  private val logger = org.slf4j.LoggerFactory.getLogger("zio-magnum")
-
   /** Default implementation of the SqlLogger trait.
     */
-  object Default extends SqlLogger:
+  class Slf4jMagnumLogger(name: String = "com.augustnagro.magnum")
+      extends SqlLogger {
 
-    override def log(successEvent: SqlSuccessEvent): Unit = (
+    protected val logger = org.slf4j.LoggerFactory.getLogger(name)
+
+    override def log(successEvent: SqlSuccessEvent): Unit = {
       if logger.isTraceEnabled then
         logger.trace(
           s"""Executed Query in ${successEvent.execTime}:
@@ -34,7 +40,7 @@ object Slf4jMagnumLogger {
              |${successEvent.sql}
              |""".stripMargin
         )
-    )
+    }
 
     override def exceptionMsg(exceptionEvent: SqlExceptionEvent): String =
       if logger.isTraceEnabled() then s"""Error executing query:
@@ -49,31 +55,59 @@ object Slf4jMagnumLogger {
               |With message:
               |${exceptionEvent.cause}
               |""".stripMargin
-  end Default
+  }
 
   /** Creates a logger that only logs slow queries.
     */
-  def logSlowQueries(slowerThan: FiniteDuration): SqlLogger = new:
-    override def log(logEvent: SqlSuccessEvent): Unit =
+  def logSlowQueries(
+      slowerThan: FiniteDuration,
+      name: String = "com.augustnagro.magnum"
+  ): SqlLogger = new Slf4jMagnumLogger(name):
+    override def log(logEvent: SqlSuccessEvent): Unit = {
       if logEvent.execTime > slowerThan then
         if logger.isTraceEnabled() then
           logger.warn(
             s"""Executed SLOW Query in ${logEvent.execTime}:
-               |${logEvent.sql}
-               |
-               |With values:
-               |${paramsString(logEvent.params)}
-               |""".stripMargin
+                  |${logEvent.sql}
+                  |
+                  |With values:
+                  |${paramsString(logEvent.params)}
+                  |""".stripMargin
           )
         else if logger.isWarnEnabled() then
           logger.warn(
             s"""Executed SLOW Query in ${logEvent.execTime}:
-               |${logEvent.sql}
-               |""".stripMargin
+                  |${logEvent.sql}
+                  |""".stripMargin
           )
         end if
-      else Default.log(logEvent)
+      else super.log(logEvent)
+    }
 
     override def exceptionMsg(exceptionEvent: SqlExceptionEvent): String =
-      Default.exceptionMsg(exceptionEvent)
+      super.exceptionMsg(exceptionEvent)
+
+  def slf4jLogger(name: String): ULayer[Logger] =
+    ZLayer.succeed(LoggerFactory.getLogger(name))
+
+  /** Provides a ZLayer that supplies a SLF4J-based SqlLogger implementation.
+    *
+    * @return
+    */
+  def live(
+      name: String = "com.augustnagro.magnum"
+  ): ZLayer[Any, Nothing, SqlLogger] = ZLayer.succeed(Slf4jMagnumLogger(name))
+
+  /** Provides a ZLayer that supplies a SLF4J-based SqlLogger implementation,
+    * that only logs queries that exceed the specified duration threshold.
+    *
+    * @param slowerThan
+    *   Duration threshold for logging slow queries.
+    * @return
+    */
+  def logSlowQueriesLive(
+      slowerThan: FiniteDuration,
+      name: String = "com.augustnagro.magnum"
+  ): ZLayer[Any, Nothing, SqlLogger] =
+    ZLayer.succeed(logSlowQueries(slowerThan, name))
 }

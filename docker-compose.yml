@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:18.1-alpine3.21
+    restart: always
+    volumes:
+      - "./db:/docker-entrypoint-initdb.d"
+    environment:
+      - "POSTGRES_USER=docker"
+      - "POSTGRES_PASSWORD=docker"
+    ports:
+      - "54321:5432"
+    command: ["postgres", "-c", "log_statement=all"]
+  aspire-dashboard:
+      environment:
+        Dashboard__Frontend__AuthMode: Unsecured
+      image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
+      ports:
+        - 4317:18889
+        - 18888:18888
