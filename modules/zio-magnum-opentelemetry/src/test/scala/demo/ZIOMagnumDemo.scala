@@ -44,7 +44,7 @@ object ZIOMagnumDemo
 
       t: Tracing <- ZIO.service[Tracing]
 
-      given ZIOMagnumTracer = ZIOpenteleMetryMagnumTracer(t)
+      given ZIOMagnumTracer = ZIOpenTelemetryMagnumTracer(t)
       given SqlLogger <- ZIO.service[SqlLogger]
 
       given DataSource <- ZIO.service[DataSource]
