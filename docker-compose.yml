@@ -1,4 +1,7 @@
 services:
+  qtrant:
+   image: qdrant/qdrant
+   
   postgres:
     image: postgres:18.1-alpine3.21
     restart: always

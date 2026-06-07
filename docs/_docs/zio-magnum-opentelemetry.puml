@@ -1,0 +1,90 @@
+@startuml "zio-magnum"
+top to bottom direction
+
+title ZIO Magnum with OpenTelemetry Integration
+
+package "User Application" {
+  [Application Code] as A
+  [ZIO Effects] as B
+  A --> B
+}
+
+package "ZIO Magnum Layer" {
+  [DataSource Layer] as C
+  [Connection Management] as D
+  [Transaction Support] as E
+  B --> C
+  B --> D
+  B --> E
+}
+
+package "Magnum Core" {
+  [SQL Query Building] as F
+  [PreparedStatement Handling] as G
+  [Transaction Logic] as H
+  C --> F
+  D --> G
+  E --> H
+}
+
+package "Database" {
+  [PostgreSQL/MySQL] as I
+  F --> I
+  G --> I
+  H --> I
+}
+
+package "OpenTelemetry" {
+  [Tracer] as Tracer
+  [Meter] as Meter
+  [SpanExporter\n(OTLP)] as SpanExporter
+  [MetricExporter\n(OTLP)] as MetricExporter
+}
+
+package "Observability Backend" {
+  [OTLP Collector] as OTLPCollector
+  [Jaeger/Tempo] as TracesBackend
+  [Prometheus] as MetricsBackend
+}
+
+' Trace flows (blue dashed arrows)
+C -[#blue,dashed]->> Tracer : query spans
+D -[#blue,dashed]->> Tracer : connection spans
+E -[#blue,dashed]->> Tracer : transaction spans
+Tracer -[#blue,dashed]->> SpanExporter
+SpanExporter -[#blue,dashed]->> OTLPCollector : traces
+OTLPCollector --> TracesBackend
+
+' Metric flows (green dotted arrows)
+C -[#green,dotted]->> Meter : query metrics
+D -[#green,dotted]->> Meter : pool metrics
+E -[#green,dotted]->> Meter : transaction metrics
+Meter -[#green,dotted]->> MetricExporter
+MetricExporter -[#green,dotted]->> OTLPCollector : metrics
+OTLPCollector --> MetricsBackend
+
+note right of C
+  OpenTelemetry Instrumentation:
+  --
+  • db.statement attribute
+  • Query execution time
+  • Result count metrics
+end note
+
+note right of D
+  Connection Pool Telemetry:
+  --
+  • Active/Idle connections
+  • Wait time histogram
+  • Connection lifecycle spans
+end note
+
+note right of E
+  Transaction Telemetry:
+  --
+  • Transaction boundaries
+  • Rollback tracking
+  • Duration metrics
+end note
+
+@enduml
