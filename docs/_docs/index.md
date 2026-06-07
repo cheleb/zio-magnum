@@ -12,8 +12,14 @@ Features:
 * Transactional support.
 * ZLayer for Datasource and Session management.
 * Support for ZIO Streams.
+* Support for ZIO OpenTelemetry.
 
+### Modules
 
+* `zio-magnum-core` - Core module.
+* `zio-magnum-opentelemetry` - OpenTelemetry integration.
+
+### Dependencies
 
 It depends on:
 * [Scala 3](https://docs.scala-lang.org/scala3/) for compile-time metaprogramming and [ScalaJS](https://www.scala-js.org/) for client-side rendering.
@@ -26,4 +32,5 @@ It depends on:
 
 Incredible thanks to incredible people who made this possible, authors and contributors of the
 * librairies this project depends on !
+* [ZIO](https://zio.dev) team for their work on ZIO, which is the foundation of this project.
 * ZIO Quill team for their work on ZIO Quill, which is the inspiration for this project.

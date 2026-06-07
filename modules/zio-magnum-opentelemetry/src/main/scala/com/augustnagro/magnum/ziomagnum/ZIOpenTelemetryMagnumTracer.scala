@@ -6,7 +6,7 @@ import io.opentelemetry.api.trace.SpanKind
 
 
 /** Companion object for ZIOMagnumTracer. */
-object ZIOpenteleMetryMagnumTracer {
+object ZIOpenTelemetryMagnumTracer {
 
 
   /** Creates a ZIOMagnumTracer that uses OpenTelemetry for tracing.
