@@ -79,7 +79,7 @@ lazy val zioMagnumCommonTest = project
       "com.augustnagro" %% "magnum" % Versions.magnum,
       "dev.zio" %% "zio" % Versions.zio,
       "dev.zio" %% "zio-streams" % Versions.zio,
-      "com.zaxxer" % "HikariCP" % "7.0.2",
+      "com.zaxxer" % "HikariCP" % "7.1.0",
       "com.dimafeng" %% "testcontainers-scala-munit" % Versions.testcontainers,
       "com.dimafeng" %% "testcontainers-scala-postgresql" % Versions.testcontainers,      
       "org.postgresql" % "postgresql" % Versions.postgresDriver ,
@@ -109,7 +109,7 @@ lazy val magnumZio = project
       "dev.zio" %% "zio" % Versions.zio,
       "dev.zio" %% "zio-streams" % Versions.zio,
 
-      "com.zaxxer" % "HikariCP" % "7.0.2",
+      "com.zaxxer" % "HikariCP" % "7.1.0",
       "com.dimafeng" %% "testcontainers-scala-munit" % Versions.testcontainers % Test,
       "com.dimafeng" %% "testcontainers-scala-postgresql" % Versions.testcontainers % Test,
       "org.postgresql" % "postgresql" % Versions.postgresDriver % Test,
