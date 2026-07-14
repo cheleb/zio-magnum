@@ -1,15 +1,15 @@
 val scala3Version = "3.8.4"
 
 val Versions = new {
-  val logbackClassic = "1.5.37"
+  val logbackClassic = "1.5.38"
   val zio = "2.1.26"
   val zioOpenTelemetry = "3.1.18"
   val testcontainers = "0.44.1"
   val munit = "1.3.3"
-  val postgresDriver = "42.7.12"
+  val postgresDriver = "42.7.13"
   val magnum = "2.0.0-M3"
   val openTelemetry = "1.64.0"
-  val openTelemetrySemconvVersion = "1.42.0"
+  val openTelemetrySemconvVersion = "1.43.0"
 
 }
 
