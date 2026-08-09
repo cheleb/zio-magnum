@@ -134,6 +134,7 @@ lazy val magnumZioOpentelemetry = project
       "io.opentelemetry" % "opentelemetry-sdk" % Versions.openTelemetry,
       "io.opentelemetry" % "opentelemetry-exporter-otlp" % Versions.openTelemetry,
       "io.opentelemetry" % "opentelemetry-exporter-logging-otlp" % Versions.openTelemetry,
+       "org.postgresql" % "postgresql" % Versions.postgresDriver % Test,
     )
   )
 
