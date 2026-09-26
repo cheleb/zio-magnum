@@ -34,7 +34,9 @@ private val currentConnection: FiberRef[Option[Connection]] =
           .extend(FiberRef.make(
             initial=Option.empty[Connection],
             fork= _ => Option.empty[Connection],
-            join = (p, _) => p
+            join = (p, c) =>
+               c.map(_.close())
+               p
             ))
       )
       .getOrThrow()
