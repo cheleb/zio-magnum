@@ -338,7 +338,7 @@ extension [A](query: Query[A])(using reader: DbCodec[A])
         sqlLogger.log(
           SqlSuccessEvent(
             query.frag.sqlString,
-            query.frag.params,
+            SqlLogParams.Fragment(query.frag.params),
             FiniteDuration(execTime.toMillis(), MILLISECONDS)
           )
         )
@@ -437,7 +437,7 @@ extension (update: Update)(using sqlLogger: SqlLogger)
         sqlLogger.log(
           SqlSuccessEvent(
             update.frag.sqlString,
-            update.frag.params,
+            SqlLogParams.Fragment(update.frag.params),
             FiniteDuration(execTime.toSeconds(), SECONDS)
           )
         )
