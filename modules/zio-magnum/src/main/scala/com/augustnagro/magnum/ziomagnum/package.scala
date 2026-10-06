@@ -25,13 +25,22 @@ import scala.language.implicitConversions
 /** Default no-op tracer for ZIO Magnum. */
 implicit val zioNoopMagnumTracer: ZIOMagnumTracer = ZIOMagnumTracer.noopTracer
 
-/** Current database connection for the fiber */
+/** Current database connection for the fiber,
+ *  Connection won't be transmitted for forked fiber, nor child connection
+ *  restitued to parent.
+ */
 private val currentConnection: FiberRef[Option[Connection]] =
   Unsafe.unsafe { implicit unsafe =>
     Runtime.default.unsafe
       .run(
         zio.Scope.global
-          .extend(FiberRef.make(Option.empty[Connection]))
+          .extend(FiberRef.make(
+            initial=Option.empty[Connection],
+            fork= _ => Option.empty[Connection],
+            join = (p, c) =>
+               c.map(_.close())
+               p
+            ))
       )
       .getOrThrow()
   }

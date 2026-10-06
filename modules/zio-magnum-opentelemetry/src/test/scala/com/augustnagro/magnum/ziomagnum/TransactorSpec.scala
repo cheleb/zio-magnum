@@ -121,6 +121,35 @@ object TransactorSpec
         program
           .map(count => assert(count(0))(equalTo(5)))
 
+      },
+      test("fork does not share connection") {
+        val program: RIO[DataSource, Vector[Int]] =
+          for
+            given DataSource <- ZIO.service[DataSource]
+            _ <- transaction("test: rollback")(
+              (for 
+                f <- userRepo.zInsert(
+                User(
+                  0,
+                  "Test User",
+                  None,
+                  UUID.randomUUID(),
+                  Some(User.Id(UUID.randomUUID()))
+                )
+
+              ).fork
+                _ <- f.join
+              yield ())
+                *>
+                  sql"SELECT booommmmm FROM users"
+                    .zQuery[Int]
+            ).ignore
+            count <- sql"SELECT COUNT(*) FROM users".zQuery[Int]
+          yield count
+
+        program
+          .map(count => assert(count(0))(equalTo(6)))
+
       }
     ).provide(
       Scope.default >>> testDataSouurceLayer
