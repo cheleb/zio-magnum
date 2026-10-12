@@ -9,7 +9,7 @@ val Versions = new {
   val postgresDriver = "42.7.14"
   val magnum = "2.0.0-M4"
   val openTelemetry = "1.65.0"
-  val openTelemetrySemconvVersion = "1.43.0"
+  val openTelemetrySemconvVersion = "1.44.0"
 
 }
 
