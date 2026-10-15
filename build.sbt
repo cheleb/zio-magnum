@@ -2,7 +2,7 @@ val scala3Version = "3.10.0"
 
 val Versions = new {
   val logbackClassic = "1.6.5"
-  val zio = "2.1.26"
+  val zio = "2.1.27"
   val zioOpenTelemetry = "3.1.20"
   val testcontainers = "0.44.1"
   val munit = "1.3.6"
