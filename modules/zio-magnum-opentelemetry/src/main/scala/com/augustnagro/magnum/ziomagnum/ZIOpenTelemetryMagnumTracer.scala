@@ -4,10 +4,8 @@ import zio.*
 import zio.telemetry.opentelemetry.tracing.Tracing
 import io.opentelemetry.api.trace.SpanKind
 
-
 /** Companion object for ZIOMagnumTracer. */
 object ZIOpenTelemetryMagnumTracer {
-
 
   /** Creates a ZIOMagnumTracer that uses OpenTelemetry for tracing.
     *

@@ -2,7 +2,7 @@ package com.augustnagro.magnum.ziomagnum
 
 import zio.ZIO
 
-  /** A tracer for ZIO effects. */
+/** A tracer for ZIO effects. */
 trait ZIOMagnumTracer {
 
   /** Wraps a ZIO effect with tracing information.

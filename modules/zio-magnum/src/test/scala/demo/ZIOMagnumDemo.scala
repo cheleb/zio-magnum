@@ -7,9 +7,7 @@ import com.augustnagro.magnum.ziomagnum.*
 import javax.sql.DataSource
 import java.util.UUID
 
-object ZIOMagnumDemo
-    extends ZIOAppDefault:
-
+object ZIOMagnumDemo extends ZIOAppDefault:
 
   @SqlName("users")
   @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
@@ -34,7 +32,6 @@ object ZIOMagnumDemo
   private val program: ZIO[DataSource & SqlLogger, Throwable, Unit] =
     for
       _ <- ZIO.logInfo("Starting ZIO Magnum demo...")
-
 
       given SqlLogger <- ZIO.service[SqlLogger]
 

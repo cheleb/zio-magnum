@@ -1,18 +1,5 @@
 val scala3Version = "3.9.0"
 
-val Versions = new {
-  val logbackClassic = "1.6.6"
-  val zio = "2.1.27"
-  val zioOpenTelemetry = "3.1.21"
-  val testcontainers = "0.44.1"
-  val munit = "1.3.6"
-  val postgresDriver = "42.7.14"
-  val magnum = "2.0.0"
-  val openTelemetry = "1.68.0"
-  val openTelemetrySemconvVersion = "1.45.0"
-
-}
-
 inThisBuild(
   Seq(
     homepage := Some(url("https://github.com/cheleb/zio-magnum/")),
@@ -70,6 +57,8 @@ lazy val root = project
   .settings(
     publish / skip := true // Skip publishing for the root project
   )
+  .enablePlugins(Website.plugins*)
+  .settings(Website.settings)
 
 lazy val zioMagnumCommonTest = project
   .in(file("modules/common-test"))
@@ -166,7 +155,9 @@ lazy val docs = project // new documentation project
   .settings(
     plantUMLSource := file("docs/_docs"),
     Compile / plantUMLTarget := "mdoc/_assets/images",
-    Compile / plantUMLFormats := Seq(PlantUMLPlugin.Formats.SVG)
+    Compile / plantUMLFormats := Seq(PlantUMLPlugin.Formats.SVG),
+    // sbt 2.x requires generated resources to live in a managed resource directory
+    Compile / managedResourceDirectories += target.value / (Compile / plantUMLTarget).value
   )
   .settings(
     libraryDependencies += "ch.qos.logback" % "logback-classic" % Versions.logbackClassic
