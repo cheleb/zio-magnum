@@ -2,7 +2,7 @@ val scala3Version = "3.9.0"
 
 inThisBuild(
   Seq(
-    homepage := Some(url("https://github.com/cheleb/zio-magnum/")),
+    homepage := Some(uri("https://github.com/cheleb/zio-magnum/")),
     organization := "dev.cheleb",
     scalaVersion := scala3Version,
     scalacOptions := Seq(
@@ -25,7 +25,7 @@ inThisBuild(
     versionScheme := Some("early-semver"),
     scmInfo := Some(
       ScmInfo(
-        url("https://github.com/cheleb/zio-magnum/"),
+        uri("https://github.com/cheleb/zio-magnum/"),
         "scm:git:git@github.com:cheleb/zio-magnum.git"
       )
     ),
@@ -34,13 +34,13 @@ inThisBuild(
         "cheleb",
         "Olivier NOUGUIER",
         "olivier.nouguier@gmail.com",
-        url("https://github.com/cheleb")
+        uri("https://github.com/cheleb")
       )
     ),
     startYear := Some(2025),
     licenses += (
       "Apache-2.0",
-      url(
+      uri(
         "http://www.apache.org/licenses/LICENSE-2.0"
       )
     ),
