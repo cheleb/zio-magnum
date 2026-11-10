@@ -27,7 +27,6 @@ It depends on:
 * [Magnum](https://github.com/augustnagro/magnum)
 
 
-
 ## Credits
 
 Incredible thanks to incredible people who made this possible, authors and contributors of the
