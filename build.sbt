@@ -92,7 +92,7 @@ lazy val zioMagnumCommonTest = project
       "io.opentelemetry" % "opentelemetry-sdk" % Versions.openTelemetry,
       "io.opentelemetry" % "opentelemetry-exporter-otlp" % Versions.openTelemetry,
       "io.opentelemetry" % "opentelemetry-exporter-logging-otlp" % Versions.openTelemetry,
-      "dev.zio" %% "zio-logging-slf4j2-bridge" % "2.5.3",
+      "dev.zio" %% "zio-logging-slf4j2-bridge" % "2.5.4",
 
     )
   ).settings(
@@ -117,7 +117,7 @@ lazy val magnumZio = project
       "dev.zio" %% "zio-test" % Versions.zio % Test,
       "dev.zio" %% "zio-test-sbt" % Versions.zio % Test,
       "dev.zio" %% "zio-logging-slf4j" % "2.5.4" % Test,
-      "dev.zio" %% "zio-logging-slf4j2-bridge" % "2.5.3" % Test
+      "dev.zio" %% "zio-logging-slf4j2-bridge" % "2.5.4" % Test
     )
   )
 
