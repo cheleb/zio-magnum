@@ -127,17 +127,18 @@ object TransactorSpec
           for
             given DataSource <- ZIO.service[DataSource]
             _ <- transaction("test: rollback")(
-              (for 
-                f <- userRepo.zInsert(
-                User(
-                  0,
-                  "Test User",
-                  None,
-                  UUID.randomUUID(),
-                  Some(User.Id(UUID.randomUUID()))
-                )
-
-              ).fork
+              (for
+                f <- userRepo
+                  .zInsert(
+                    User(
+                      0,
+                      "Test User",
+                      None,
+                      UUID.randomUUID(),
+                      Some(User.Id(UUID.randomUUID()))
+                    )
+                  )
+                  .fork
                 _ <- f.join
               yield ())
                 *>
